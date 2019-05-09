@@ -1,0 +1,36 @@
+{
+    "settings": {
+      "index": {
+        "number_of_shards": "1",
+        "number_of_replicas": "0"
+      }
+    },
+    "mappings": {
+      "entry": {
+        "properties": {
+          "id": {
+            "type": "keyword"
+          },
+          "checksum": {
+            "type": "keyword"
+          },
+          "startTime": {
+            "type": "date"
+          },
+          "endTime": {
+            "type": "date"
+          },
+          "bounds": {
+            "properties": {
+              "min": {
+                "type": "geo_point"
+              },
+              "max": {
+                "type": "geo_point"
+              }
+            }
+          }
+        }
+      }
+    }
+}
