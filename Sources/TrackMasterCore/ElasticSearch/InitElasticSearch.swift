@@ -1,5 +1,4 @@
 import Foundation
-import Alamofire
 
 public var ElasticServer = ""
 public var ElasticIndexName = "track_index"
@@ -25,7 +24,6 @@ public func initElasticSearch() throws {
 private func createIndex() throws {
     print("Creating index '\(ElasticIndexName)'")
     let fileData = try Data(contentsOf: URL(fileURLWithPath: ElasticCreateIndexScript))
-    // let createIndexScript = try JSON(data: fileData)
     let _ = try httpPutJson(host: ElasticServer, path: "/\(ElasticIndexName)", parameters: nil, body: fileData)
 }
 

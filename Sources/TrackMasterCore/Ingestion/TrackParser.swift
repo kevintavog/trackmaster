@@ -1,6 +1,8 @@
 import Foundation
+import Vapor
 
 public class TrackParser {
+    static private let eventGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     static private var _dateTimeFormatter: DateFormatter?
     static public var dateTimeFormatter: DateFormatter {
         get {
@@ -11,6 +13,16 @@ public class TrackParser {
                 TrackParser._dateTimeFormatter = dt
             }
             return TrackParser._dateTimeFormatter!
+        }
+    }
+
+    static private var _reverseClient: ReverseNameLookupClient?
+    static private var reverseNameLookupClient: ReverseNameLookupClient {
+        get {
+            if _reverseClient == nil {
+                _reverseClient = try? ReverseNameLookupClient.connect(baseUrl: ReverseNameLookupServer, on: eventGroup).wait()
+            }
+            return TrackParser._reverseClient!
         }
     }
 
@@ -99,7 +111,8 @@ public class TrackParser {
     }
 
     static fileprivate func addName(_ lat: Double, _ lon: Double, _ list: inout [ReverseNameLookupResponse]) {
-        if let name = reverseNameLookup(lat: lat, lon: lon, distance: 500) {
+
+        if let name = try? reverseNameLookupClient.get(lat: lat, lon: lon, distance: 500).wait() {
             list.append(name)
         }
     }
