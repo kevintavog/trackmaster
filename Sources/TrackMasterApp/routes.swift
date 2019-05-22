@@ -7,4 +7,5 @@ public func routes(_ router: Router) throws {
     let trackController = TrackController()
     api.get("tracks", use: trackController.tracks)
     api.get("tracks", String.parameter, use: trackController.track)
+    api.get("tracks", String.parameter, "raw", use: trackController.rawTrack)
 }

@@ -1,13 +1,18 @@
 import TrackMasterCore
 import Vapor
 
+struct TracksQueryParams: Codable {
+    let first: Int?
+    let count: Int?
+}
+
 final class TrackController {
     func track(_ req: Request) throws -> Future<Track> {
         let clientPromise = req.eventLoop.newPromise(Track.self)
         let id = try req.parameters.next(String.self).urlEscape()
 
-        ElasticSearchClient.connect(baseUrl: ElasticServer, on: req.eventLoop).do() { client in
-            client.getId(id: id).do() { t in
+        ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: req.eventLoop).do() { client in
+            client.get(id: id).do() { t in
                 if let track = t {
                     clientPromise.succeed(result: track)
                 }
@@ -20,12 +25,42 @@ final class TrackController {
         return clientPromise.futureResult
     }
 
-    func tracks(_ req: Request) throws -> Future<[Track]> {
-        let t = try ElasticSearchClient.get(id: "%2F2015%2F0912%2Egpx")
-        if let track = t {
-            return req.future([track])
-        } else {
-            return req.future([])
+    func rawTrack(_ req: Request) throws -> Future<String> {
+        let clientPromise = req.eventLoop.newPromise(String.self)
+        let id = try req.parameters.next(String.self).urlEscape()
+
+        ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: req.eventLoop).do() { client in
+            client.get(id: id).do() { t in
+                if let track = t {
+                    do {
+                        try clientPromise.succeed(result: track.raw())
+                    } catch {
+                        clientPromise.fail(error: ControllerError(error: error))
+                    }
+                }
+            }.catch() { error in
+                clientPromise.fail(error: ControllerError(error: error))
+            }
+        }.catch() { error in
+            clientPromise.fail(error: ControllerError(error: error))
         }
+
+        return clientPromise.futureResult
+    }
+
+    func tracks(_ req: Request) throws -> Future<ControllerTracksResponse> {
+        let clientPromise = req.eventLoop.newPromise(ControllerTracksResponse.self)
+        ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: req.eventLoop).do() { client in
+            let qp = try! req.query.decode(TracksQueryParams.self)
+            client.search(query: "", first: qp.first ?? 1, count: qp.count ?? 10).do() { searchResponse in
+                clientPromise.succeed(result: ControllerTracksResponse(searchResponse: searchResponse))
+            }.catch() { error in
+                clientPromise.fail(error: ControllerError(error: error))
+            }
+        }.catch() { error in
+            clientPromise.fail(error: ControllerError(error: error))
+        }
+
+        return clientPromise.futureResult
     }
 }

@@ -1,6 +1,26 @@
 import Foundation
 import TrackMasterCore
 import Guaka
+import Vapor
+
+
+func ShouldCreateOrUpdate(_ client: ElasticSearchClient, _ base: String, _ inputFile: URL) throws -> Bool {
+    let id = inputFile.path.deletingPathPrefix(base).urlEscape()
+    do {
+        if let track = try client.get(id: id).wait() {
+            let checksum = try calculateChecksum(url: inputFile)
+            return track.checksum != checksum
+        }
+        return true
+    } catch TMError.httpError(let status, let message) {
+        if status != 404 {
+            throw TMError.httpError(status: status, message: message)
+        }
+        return true
+    }
+}
+
+private let eventGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
 
 
 let elasticUrlFlag = Flag(shortName: "e", longName: "elasticUrl", type: String.self, description: "The URL for the ElasticSearch service", required: true)
@@ -12,13 +32,13 @@ let flags = [createScriptFlag, elasticUrlFlag, reverseNameUrlFlag, trackFolderFl
 let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
 
     if let createScript = flags.getString(name: "createScript") {
-        ElasticCreateIndexScript = createScript
+        ElasticSearch.CreateIndexScript = createScript
     }
 
-    ElasticServer = flags.getString(name: "elasticUrl")!
+    ElasticSearch.ServerUrl = flags.getString(name: "elasticUrl")!
     ReverseNameLookupServer = flags.getString(name: "reverseNameUrl")!
     do {
-        try initElasticSearch()
+        try ElasticSearch().initialize()
     } catch {
         fail(statusCode: 1, errorMessage: "Failed initializing: \(error)")
     }
@@ -28,12 +48,14 @@ let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
         let files = try enumerateFiles(URL(fileURLWithPath: trackFolder))
         print("Found \(files.count) files")
 
+        let es = try! ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: eventGroup).wait()
+
 var doFirst = true
         for f in files {
-            if try ShouldCreateOrUpdate(trackFolder, f) || doFirst {
+            if try ShouldCreateOrUpdate(es, trackFolder, f) || doFirst {
 doFirst = false
                 let track = try TrackParser.parse(trackFolder, f)
-                try ElasticSearchClient.index(track: track)
+                let _ = try es.index(track: track).wait()
                 print("inserted \(f.path)")
             }
         }

@@ -6,6 +6,7 @@ public struct Track: Codable {
     public let checksum: String
     public var startTime: Date?
     public var endTime: Date?
+    public let indexTime: Date?
     public var bounds = Track.Bounds()
     public var countryNames: [String]? = [String]()
     public var countryCodes: [String]? = [String]()
@@ -18,6 +19,7 @@ public struct Track: Codable {
         self.id = path.urlEscape()
         self.path = path
         self.checksum = checksum
+        self.indexTime = Date()
     }
 
     public struct Bounds: Codable {

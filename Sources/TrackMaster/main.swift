@@ -9,14 +9,15 @@ let flags = [elasticUrlFlag, trackFolderFlag]
 
 let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
 
-    ElasticServer = flags.getString(name: "elasticUrl")!
+    ElasticSearch.ServerUrl = flags.getString(name: "elasticUrl")!
     do {
-        try initElasticSearch()
+        try ElasticSearch().initialize()
     } catch {
         fail(statusCode: 1, errorMessage: "Failed initializing: \(error)")
     }
 
-    let trackFolder = flags.getString(name: "trackFolder")!
+    BaseTrackFolder = flags.getString(name: "trackFolder")!
+    print("Track folder: \(BaseTrackFolder); ElasticSearch server: \(ElasticSearch.ServerUrl)")
     do {
         try app(.detect(arguments: [CommandLine.arguments[0]])).run()
     } catch {

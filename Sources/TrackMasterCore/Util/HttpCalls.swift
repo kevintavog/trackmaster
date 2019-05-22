@@ -52,8 +52,49 @@ public class HttpCalls {
             return response.body.data
         }
     }
+
+    public func putJson(path: String, body: Data) -> Future<JSON?> {
+        return self.put(path: path, body: body).map(to: JSON?.self) { data in
+            if let d = data {
+                return try JSON(data: d)
+            }
+            return nil
+        }
+    }
+
+    public func put(path: String, body: Data) -> Future<Data?> {
+        let request = HTTPRequest(method: .PUT, url: path, body: HTTPBody(data: body))
+        return httpClient.send(request).map(to: Data?.self) { response in
+            if response.status.code >= 400 {
+                let body = String(data: response.body.data ?? Data(), encoding: .utf8) ?? ""
+                throw TMError.httpError(status: response.status.code, message: body)
+            }
+            return response.body.data
+        }
+    }
+
+    public func postJson(path: String, body: Data) -> Future<JSON?> {
+        return self.post(path: path, body: body).map(to: JSON?.self) { data in
+            if let d = data {
+                return try JSON(data: d)
+            }
+            return nil
+        }
+    }
+
+    public func post(path: String, body: Data) -> Future<Data?> {
+        let request = HTTPRequest(method: .POST, url: path, body: HTTPBody(data: body))
+        return httpClient.send(request).map(to: Data?.self) { response in
+            if response.status.code >= 400 {
+                let body = String(data: response.body.data ?? Data(), encoding: .utf8) ?? ""
+                throw TMError.httpError(status: response.status.code, message: body)
+            }
+            return response.body.data
+        }
+    }
 }
 
+/*
 private let eventGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
 
 public func httpGetJson(host: String, path: String, parameters: [String:String]?) throws -> JSON? {
@@ -109,3 +150,4 @@ private func isFailure(_ status: UInt) -> Bool {
 private func isOK(_ status: UInt) -> Bool {
     return status >= 200 && status <= 299
 }
+*/
