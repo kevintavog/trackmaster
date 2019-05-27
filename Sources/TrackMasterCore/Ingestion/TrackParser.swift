@@ -3,18 +3,6 @@ import Vapor
 
 public class TrackParser {
     static private let eventGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-    static private var _dateTimeFormatter: DateFormatter?
-    static public var dateTimeFormatter: DateFormatter {
-        get {
-            if TrackParser._dateTimeFormatter == nil {
-                let dt = DateFormatter()
-                dt.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-                dt.timeZone = TimeZone(secondsFromGMT: 0)
-                TrackParser._dateTimeFormatter = dt
-            }
-            return TrackParser._dateTimeFormatter!
-        }
-    }
 
     static private var _reverseClient: ReverseNameLookupClient?
     static private var reverseNameLookupClient: ReverseNameLookupClient {
@@ -26,65 +14,80 @@ public class TrackParser {
         }
     }
 
-    static public func parse(_ base: String, _ inputFile: URL) throws -> Track {
+
+    private var names = [ReverseNameLookupResponse]()
+    private var points = [GpsPoint]()
+    private var runs = [GpsRun]()
+    private var tracks = [GpsTrack]()
+    private var timezoneInfo = TimezoneInfo(id: "", tag: "")
+    private init() {
+    }
+
+    static public func parse(_ base: String, _ inputFile: URL) throws -> (Gps?, Track?) {
+        return try TrackParser().run(base, inputFile)
+    }
+
+    fileprivate func run(_ base: String, _ inputFile: URL) throws -> (Gps?, Track?) {
         let fileData = try Data(contentsOf: inputFile)
         let xml = XML(data: fileData)
 
         let checksum = try calculateChecksum(url: inputFile)
 
-        var names = [ReverseNameLookupResponse]()
-
-        var prevLat: Double = 0.0
-        var prevLon: Double = 0.0
-        var distanceKm: Double = 0.0
-
-
-        var exportedTrack = Track(path: inputFile.path.deletingPathPrefix(base), checksum: checksum)
-        for track in xml!["trk"] {
-            for segment in track["trkseg"] {
+        for trk in xml!["trk"] {
+            for segment in trk["trkseg"] {
                 for point in segment["trkpt"] {
-                    let ptTime = TrackParser.dateTimeFormatter.date(from: point["time"].stringValue)
-                    let ptLat = point["@lat"].doubleValue
-                    let ptLon = point["@lon"].doubleValue
-                    if exportedTrack.startTime == nil {
-                        exportedTrack.startTime = ptTime
-                        exportedTrack.endTime = ptTime
-                        exportedTrack.bounds.min.lat = ptLat
-                        exportedTrack.bounds.max.lat = ptLat
-                        exportedTrack.bounds.min.lon = ptLon
-                        exportedTrack.bounds.max.lon = ptLon
-                        TrackParser.addName(ptLat, ptLon, &names)
-                        distanceKm = 0.0
-                    } else if ptTime != nil {
-                        if ptTime! < exportedTrack.startTime! {
-                            exportedTrack.startTime = ptTime
-                        }
-                        if ptTime! > exportedTrack.endTime! {
-                            exportedTrack.endTime = ptTime
-                        }
+                    addPoint(point)
+                }
+            }
+            addRun()
+            addTrack()
+        }
 
-                        if ptLat < exportedTrack.bounds.min.lat! {
-                            exportedTrack.bounds.min.lat = ptLat
-                        } else if ptLat > exportedTrack.bounds.max.lat! {
-                            exportedTrack.bounds.max.lat = ptLat
-                        }
-                        if ptLon < exportedTrack.bounds.min.lon! {
-                            exportedTrack.bounds.min.lon = ptLon
-                        } else if ptLon > exportedTrack.bounds.max.lon! {
-                            exportedTrack.bounds.max.lon = ptLon
-                        }
-                        distanceKm += Geo.distance(lat1: prevLat, lon1: prevLon, lat2: ptLat, lon2: ptLon)
-                        if distanceKm > 1.0 {
-                            TrackParser.addName(ptLat, ptLon, &names)
-                            distanceKm = 0.0
-                        }
-                    }
-                    prevLat = ptLat
-                    prevLon = ptLon
+        if tracks.count == 0 {
+            return (nil, nil)
+        }
+
+        if TimezoneLookupClient.timezoneLookupServer != nil {
+            let firstPoint = tracks.first!.runs.first!.points.first!
+            if let client = try? TimezoneLookupClient.connect(on: TrackParser.eventGroup).wait() {
+                defer { client.close() }
+
+                if let tz = try? client.at(lat: firstPoint.latitude, lon: firstPoint.longitude).wait() {
+                    self.timezoneInfo = tz
                 }
             }
         }
 
+        let gps = Gps(path: inputFile.path.deletingPathPrefix(base), tracks: tracks, tzInfo: timezoneInfo)
+
+print("gps: \(gps)")
+for t in gps.tracks {
+    print("Track: \(t)")
+    for r in t.runs {
+        print("  run: \(r)")
+    }
+}
+
+        var distanceKm: Double = 0.0
+        addName(tracks.first!.runs.first!.points.first!)
+        addName(tracks.last!.runs.last!.points.last!)
+        for tr in gps.tracks {
+            for run in tr.runs {
+                for pt in run.points {
+                    distanceKm += pt.metersFromPrevious / 1000.0
+                    if distanceKm > 1.0 {
+                        addName(pt)
+                        distanceKm = 0.0
+                    }
+                }
+            }
+        }
+
+        var exportedTrack = Track(
+            path: inputFile.path.deletingPathPrefix(base), checksum: checksum, timezoneInfo: gps.timezoneInfo,
+            startTime: gps.startTime, endTime: gps.endTime, bounds: gps.bounds)
+
+        // Accumulate all name entries for search weighting
         names.forEach {
             if let sites = $0.sites, sites.count > 0 {
                 exportedTrack.siteNames! += sites
@@ -103,17 +106,63 @@ public class TrackParser {
             }
         }
 
-        exportedTrack.stateNames = Array(Set(exportedTrack.stateNames!))
-        exportedTrack.countryNames = Array(Set(exportedTrack.countryNames!))
-        exportedTrack.countryCodes = Array(Set(exportedTrack.countryCodes!))
-
-        return exportedTrack
+        return (gps, exportedTrack)
     }
 
-    static fileprivate func addName(_ lat: Double, _ lon: Double, _ list: inout [ReverseNameLookupResponse]) {
+    fileprivate func addPoint(_ xml: XML) {
+        let latitude = xml["@lat"].doubleValue
+        let longitude = xml["@lon"].doubleValue
+        let elevation = xml["ele"].doubleValue
+        let time = GpsPoint.dateTimeFormatter.date(from: xml["time"].stringValue)!
+        let course = Int(xml["course"].doubleValue)
+        let speedMs = xml["speed"].doubleValue
 
-        if let name = try? reverseNameLookupClient.get(lat: lat, lon: lon, distance: 500).wait() {
-            list.append(name)
+        let pt = GpsPoint(latitude: latitude, longitude: longitude,
+            elevation: elevation, time: time, course: course, speedMs: speedMs)
+        
+        checkForNewRun(pt)
+        self.points.append(pt)
+    }
+
+    fileprivate func checkForNewRun(_ pt: GpsPoint) {
+        guard let prevPoint = self.points.last else {
+            return
+        }
+
+        var newRun = false
+
+        // More than 20 seconds
+        if prevPoint.seconds(between: pt) > 20.0 {
+            // print("New run, more than 20 seconds: \(prevPoint.seconds(between: pt))")
+            newRun = true
+        }
+
+        if newRun {
+            addRun()
+        }
+    }
+
+    fileprivate func addRun() {
+        if self.points.count > 1 {
+            self.runs.append(GpsRun(points: self.points))
+            self.points.removeAll(keepingCapacity: true)
+        } else {
+            print("Ignoring new run with only \(self.points.count) points!")
+        }
+    }
+
+    fileprivate func addTrack() {
+        if self.runs.count > 0 {
+            self.tracks.append(GpsTrack(runs: self.runs))
+            self.runs.removeAll(keepingCapacity: true)
+        }
+    }
+
+    fileprivate func addName(_ pt: GpsPoint) {
+        if ReverseNameLookupServer.count > 0 {
+            if let name = try? TrackParser.reverseNameLookupClient.get(lat: pt.latitude, lon: pt.longitude, distance: 500).wait() {
+                self.names.append(name)
+            }
         }
     }
 }

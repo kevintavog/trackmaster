@@ -23,11 +23,18 @@ func ShouldCreateOrUpdate(_ client: ElasticSearchClient, _ base: String, _ input
 private let eventGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
 
 
-let elasticUrlFlag = Flag(shortName: "e", longName: "elasticUrl", type: String.self, description: "The URL for the ElasticSearch service", required: true)
-let reverseNameUrlFlag = Flag(shortName: "r", longName: "reverseNameUrl", type: String.self, description: "The URL for the ReverseName service", required: true)
-let trackFolderFlag = Flag(shortName: "t", longName: "trackFolder", type: String.self, description: "The folder containing the tracks.", required: true)
 let createScriptFlag = Flag(shortName: "c", longName: "createScript", type: String.self, description: "The script for creating the ElasticSearch index, if necessary", required: false)
-let flags = [createScriptFlag, elasticUrlFlag, reverseNameUrlFlag, trackFolderFlag]
+let elasticUrlFlag = Flag(shortName: "e", longName: "elasticUrl", type: String.self, description: "The URL for the ElasticSearch service", required: true)
+let forceFlag = Flag(longName: "force", type: Bool.self, description: "Force the updates", required: false)
+let gpsFolderFlag = Flag(shortName: "g", longName: "gpsFolder", type: String.self, description: "The folder the GPS files will be written.", required: true)
+let maxCountFlag = Flag(longName: "max", type: Int.self, description: "The maximum files to parse", required: false)
+let reverseNameUrlFlag = Flag(shortName: "r", longName: "reverseNameUrl", type: String.self, description: "The URL for the ReverseName service", required: true)
+let singleFileOverrideFlag = Flag(shortName: "s", longName: "singleFile", type: String.self, description: "The single file to process.", required: false)
+let timezoneLookupUrlFlag = Flag(shortName: "z", longName: "timezoneLookupUrl", type: String.self, description: "The URL for the Timezone Lookup service", required: false)
+let trackFolderFlag = Flag(shortName: "t", longName: "trackFolder", type: String.self, description: "The folder containing the tracks.", required: true)
+
+let flags = [createScriptFlag, elasticUrlFlag, forceFlag,gpsFolderFlag,  maxCountFlag, 
+    reverseNameUrlFlag, singleFileOverrideFlag, timezoneLookupUrlFlag, trackFolderFlag]
 
 let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
 
@@ -37,30 +44,63 @@ let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
 
     ElasticSearch.ServerUrl = flags.getString(name: "elasticUrl")!
     ReverseNameLookupServer = flags.getString(name: "reverseNameUrl")!
+    GpsRepository.gpsFolder = flags.getString(name: "gpsFolder")
+    if let tzLookup = flags.getString(name: "timezoneLookupUrl") {
+        TimezoneLookupClient.timezoneLookupServer = tzLookup
+    }
+
     do {
         try ElasticSearch().initialize()
     } catch {
         fail(statusCode: 1, errorMessage: "Failed initializing: \(error)")
     }
 
+    let es = try! ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: eventGroup).wait()
+    defer { es.close() }
     let trackFolder = flags.getString(name: "trackFolder")!
-    do {
-        let files = try enumerateFiles(URL(fileURLWithPath: trackFolder))
-        print("Found \(files.count) files")
-
-        let es = try! ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: eventGroup).wait()
-
-var doFirst = true
-        for f in files {
-            if try ShouldCreateOrUpdate(es, trackFolder, f) || doFirst {
-doFirst = false
-                let track = try TrackParser.parse(trackFolder, f)
-                let _ = try es.index(track: track).wait()
-                print("inserted \(f.path)")
+    if let singleFile = flags.getString(name: "singleFile") {
+        do {
+            // ReverseNameLookupServer = ""
+            let (gps, track) = try TrackParser.parse(trackFolder, URL(fileURLWithPath: singleFile))
+            if track != nil {
+print("inserting track: \(track!)")
+                let _ = try es.index(track: track!).wait()
+                try GpsRepository.save(gps: gps!)
+            } else {
+                print("Unable to parse \(singleFile)")
             }
+        } catch {
+            fail(statusCode: 2, errorMessage: "Failed processing: \(error)")
         }
-    } catch {
-        fail(statusCode: 2, errorMessage: "Failed processing: \(error)")
+
+    } else {
+        do {
+            let force = flags.getBool(name: "force") ?? false
+            let maxCount = flags.getInt(name: "max") ?? -1
+            let files = try enumerateFiles(URL(fileURLWithPath: trackFolder))
+            print("Found \(files.count) files")
+
+            var count = 0
+            for f in files {
+                if try force || ShouldCreateOrUpdate(es, trackFolder, f) {
+                    let (gps, track) = try TrackParser.parse(trackFolder, f)
+                    if track != nil {
+                        let _ = try es.index(track: track!).wait()
+                        try GpsRepository.save(gps: gps!)
+                        print("inserted \(f.path) - \(track!.id)")
+                    } else {
+                        print("Unable to parse \(f)")
+                    }
+
+                    count += 1
+                    if maxCount >= 0 && count >= maxCount {
+                        break
+                    }
+                }
+            }
+        } catch {
+            fail(statusCode: 2, errorMessage: "Failed processing: \(error)")
+        }
     }
 }
 

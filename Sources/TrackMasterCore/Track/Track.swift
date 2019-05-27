@@ -4,10 +4,11 @@ public struct Track: Codable {
     public let id: String
     public let path: String
     public let checksum: String
-    public var startTime: Date?
-    public var endTime: Date?
-    public let indexTime: Date?
-    public var bounds = Track.Bounds()
+    public var timezoneInfo: TimezoneInfo
+    public var startTime: Date
+    public var endTime: Date
+    public let indexTime: Date
+    public var bounds: Bounds
     public var countryNames: [String]? = [String]()
     public var countryCodes: [String]? = [String]()
     public var stateNames: [String]? = [String]()
@@ -15,16 +16,16 @@ public struct Track: Codable {
     public var siteNames: [String]? = [String]()
 
 
-    public init(path: String, checksum: String) {
+    public init(path: String, checksum: String, timezoneInfo: TimezoneInfo, 
+            startTime: Date, endTime: Date, bounds: Bounds) {
         self.id = path.urlEscape()
         self.path = path
         self.checksum = checksum
+        self.timezoneInfo = timezoneInfo
+        self.startTime = startTime
+        self.endTime = endTime
+        self.bounds = bounds
         self.indexTime = Date()
-    }
-
-    public struct Bounds: Codable {
-        public var min = Point()
-        public var max = Point()
     }
 
     public func encodeToJson() throws -> Data {

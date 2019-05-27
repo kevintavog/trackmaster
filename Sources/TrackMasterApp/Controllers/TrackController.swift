@@ -7,14 +7,14 @@ struct TracksQueryParams: Codable {
 }
 
 final class TrackController {
-    func track(_ req: Request) throws -> Future<Track> {
-        let clientPromise = req.eventLoop.newPromise(Track.self)
+    func track(_ req: Request) throws -> Future<ControllerTrack> {
+        let clientPromise = req.eventLoop.newPromise(ControllerTrack.self)
         let id = try req.parameters.next(String.self).urlEscape()
 
         ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: req.eventLoop).do() { client in
             client.get(id: id).do() { t in
                 if let track = t {
-                    clientPromise.succeed(result: track)
+                    clientPromise.succeed(result: ControllerTrack(track: track))
                 }
             }.catch() { error in
                 clientPromise.fail(error: ControllerError(error: error))
@@ -33,7 +33,7 @@ final class TrackController {
             client.get(id: id).do() { t in
                 if let track = t {
                     do {
-                        try clientPromise.succeed(result: track.raw())
+                        try clientPromise.succeed(result: GpsRepository.loadRaw(path: track.path))
                     } catch {
                         clientPromise.fail(error: ControllerError(error: error))
                     }
