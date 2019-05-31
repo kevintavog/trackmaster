@@ -33,15 +33,26 @@ public class TrackParser {
 
         let checksum = try calculateChecksum(url: inputFile)
 
+        var allPoints = [GpsPoint]()
         for trk in xml!["trk"] {
             for segment in trk["trkseg"] {
+                var prev: GpsPoint? = nil
                 for point in segment["trkpt"] {
-                    addPoint(point)
+                    prev = createPoint(prev, point)
+                    allPoints.append(prev!)
                 }
             }
-            addRun()
-            addTrack()
         }
+
+        let movingPoints = StopFilter.analyze(points: allPoints)
+        for pt in movingPoints {
+            checkForNewRun(pt)
+            self.points.append(pt)
+        }
+        addRun()
+        runs = StopFilter.analyze(runs: runs)
+
+        addTrack()
 
         if tracks.count == 0 {
             return (nil, nil)
@@ -58,13 +69,29 @@ public class TrackParser {
             }
         }
 
-        let gps = Gps(path: inputFile.path.deletingPathPrefix(base), tracks: tracks, tzInfo: timezoneInfo)
+// print("stop points:")
+// StopFilter.emit()
+
+        let gps = Gps(
+            path: inputFile.path.deletingPathPrefix(base),
+            tracks: tracks,
+            stops: StopFilter.stopPoints,
+            tzInfo: timezoneInfo)
 
 print("gps: \(gps)")
 for t in gps.tracks {
     print("Track: \(t)")
+    var prevRun: GpsRun? = nil
     for r in t.runs {
-        print("  run: \(r)")
+        var extra = ""
+        if let pr = prevRun {
+            let gapSeconds = r.points.first!.seconds(between: pr.points.last!)
+            let gapMeters = 1000 * r.points.first!.distanceKm(between: pr.points.last!)
+            extra = "; \(gapSeconds) second; " +
+                "\(Int(gapMeters)) meters gap"
+        }
+        print("  run: \(r)\(extra)")
+        prevRun = r
     }
 }
 
@@ -74,7 +101,7 @@ for t in gps.tracks {
         for tr in gps.tracks {
             for run in tr.runs {
                 for pt in run.points {
-                    distanceKm += pt.metersFromPrevious / 1000.0
+                    distanceKm += pt.kmFromPrevious
                     if distanceKm > 1.0 {
                         addName(pt)
                         distanceKm = 0.0
@@ -109,7 +136,7 @@ for t in gps.tracks {
         return (gps, exportedTrack)
     }
 
-    fileprivate func addPoint(_ xml: XML) {
+    fileprivate func createPoint(_ prev: GpsPoint?, _ xml: XML) -> GpsPoint {
         let latitude = xml["@lat"].doubleValue
         let longitude = xml["@lon"].doubleValue
         let elevation = xml["ele"].doubleValue
@@ -119,9 +146,9 @@ for t in gps.tracks {
 
         let pt = GpsPoint(latitude: latitude, longitude: longitude,
             elevation: elevation, time: time, course: course, speedMs: speedMs)
-        
-        checkForNewRun(pt)
-        self.points.append(pt)
+
+        PointChanges.analyze(prev: prev, point: pt)
+        return pt
     }
 
     fileprivate func checkForNewRun(_ pt: GpsPoint) {
@@ -133,12 +160,12 @@ for t in gps.tracks {
 
         // More than 20 seconds
         if prevPoint.seconds(between: pt) > 20.0 {
-            // print("New run, more than 20 seconds: \(prevPoint.seconds(between: pt))")
             newRun = true
         }
 
         if newRun {
             addRun()
+            PointChanges.clear(point: pt)
         }
     }
 
@@ -146,8 +173,6 @@ for t in gps.tracks {
         if self.points.count > 1 {
             self.runs.append(GpsRun(points: self.points))
             self.points.removeAll(keepingCapacity: true)
-        } else {
-            print("Ignoring new run with only \(self.points.count) points!")
         }
     }
 

@@ -1,5 +1,13 @@
 import Foundation
 
+public enum PointProblem: String, Codable {
+    case noSpeed = "no speed"
+    case tooFast = "too fast"
+    case substantialCourseChange = "substantial course change"
+    case substantialSpeedChange = "substantial speed change"
+}
+
+
 public class GpsPoint: Codable, GeoPoint, CustomStringConvertible {
     public let latitude: Double
     public let longitude: Double
@@ -8,12 +16,20 @@ public class GpsPoint: Codable, GeoPoint, CustomStringConvertible {
     public let course: Int
     public let speedMs: Double
     public let speedKmH: Double
-    public let transportationTypes: [TransportationType]
 
     // Set by analyzers
-    public var metersFromPrevious: Double = 0
+    public var calculatedCourseFromPrevious: Int = 0
+    public var kmFromPrevious: Double = 0
+    public var secondsFromPrevious: Double = 0
+    public var calculatedSpeedKmHFromPrevious: Double = 0
+    public var movingAverageKmH: Double = 0
     public var kilometersIntoRun: Double = 0
     public var secondsIntoRun: Double = 0
+    public var problems: [PointProblem] = []
+    public var transportationTypes: [TransportationType] = []
+
+    public var prevSpeedChange: Double = 0
+    public var prevCourseChange: Int = 0
 
     static private var _dateTimeFormatter: DateFormatter?
     static public var dateTimeFormatter: DateFormatter {
@@ -38,13 +54,16 @@ public class GpsPoint: Codable, GeoPoint, CustomStringConvertible {
         self.speedMs = speedMs
 
         self.speedKmH = Converter.metersPerSecondToKilometersPerHour(metersSecond: self.speedMs)
-
-        transportationTypes = Transportation.calculate(speedKmh: self.speedKmH)
     }
 
     // Number of seconds between two points, independent of which is earlier
     public func seconds(between: GpsPoint) -> Double {
         return abs(self.time.timeIntervalSince(between.time))
+    }
+
+    // Return the distance, in kilometers, between two points
+    public func distanceKm(between: GpsPoint) -> Double {
+        return Geo.distance(pt1: self, pt2: between)
     }
 
     // Return the speed, in kilometers / hour, between two points
