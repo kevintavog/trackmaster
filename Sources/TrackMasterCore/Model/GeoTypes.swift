@@ -9,7 +9,12 @@ public class GeoPointInstance: GeoPoint, Codable, CustomStringConvertible {
     public var latitude: Double
     public var longitude: Double
 
-    init(latitude: Double, longitude: Double) {
+    public init(point: GeoPoint) {
+        self.latitude = point.latitude
+        self.longitude = point.longitude
+    }
+
+    public init(latitude: Double, longitude: Double) {
         self.latitude = latitude
         self.longitude = longitude
     }
@@ -28,7 +33,6 @@ public class GeoPointInstance: GeoPoint, Codable, CustomStringConvertible {
         case longitude = "lon"
     }
 }
-
 
 public struct GeoLine {
     public let start: GeoPoint
@@ -51,6 +55,17 @@ public struct GeoRectangle {
     public let minLon: Double
     public let maxLat: Double
     public let maxLon: Double
+
+    init(center: GeoPoint, distanceMeters: Double) {
+        let (latOffset, lonOffset) = Geo.meterOffsetAt(
+            distanceMeters: distanceMeters,
+            latitude: center.latitude,
+            longitude: center.longitude)
+        self.minLat = center.latitude - latOffset
+        self.minLon = center.longitude - lonOffset
+        self.maxLat = center.latitude + latOffset
+        self.maxLon = center.longitude + lonOffset
+    }
 
     init(minLat: Double, minLon: Double, maxLat: Double, maxLon: Double) {
         self.minLat = minLat

@@ -5,17 +5,21 @@ public class Gps: Codable, CustomStringConvertible {
     public let path: String
     public let tracks: [GpsTrack]
     public let stops: [GpsPoint]
+    public let removedRuns: [GpsRun]
     public let timezoneInfo: TimezoneInfo
     public let startTime: Date
     public let endTime: Date
     public let distanceKilometers: Double
     public let bounds: Bounds
 
-    public init(path: String, tracks: [GpsTrack], stops: [GpsPoint], tzInfo: TimezoneInfo) {
+    public var cells = [RasterCell]()
+
+    public init(path: String, tracks: [GpsTrack], stops: [GpsPoint], removedRuns: [GpsRun], tzInfo: TimezoneInfo) {
         self.path = path
         self.id = path.urlEscape()
         self.tracks = tracks
         self.stops = stops
+        self.removedRuns = removedRuns
         self.timezoneInfo = tzInfo
         self.startTime = tracks.first!.runs.first!.points.first!.time
         self.endTime = tracks.last!.runs.last!.points.last!.time

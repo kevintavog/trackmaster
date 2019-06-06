@@ -56,6 +56,11 @@ public class GpsPoint: Codable, GeoPoint, CustomStringConvertible {
         self.speedKmH = Converter.metersPerSecondToKilometersPerHour(metersSecond: self.speedMs)
     }
 
+    public func timeString() -> String {
+        let components = Calendar.current.dateComponents([.hour, .minute, .second], from: time)
+        return String(format: "%02d:%02d:%02d", components.hour!, components.minute!, components.second!)
+    }
+
     // Number of seconds between two points, independent of which is earlier
     public func seconds(between: GpsPoint) -> Double {
         return abs(self.time.timeIntervalSince(between.time))

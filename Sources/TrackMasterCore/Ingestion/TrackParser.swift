@@ -37,22 +37,31 @@ public class TrackParser {
         for trk in xml!["trk"] {
             for segment in trk["trkseg"] {
                 var prev: GpsPoint? = nil
-                for point in segment["trkpt"] {
-                    prev = createPoint(prev, point)
-                    allPoints.append(prev!)
+                for xmlPoint in segment["trkpt"] {
+                    let pt = GpsPoint.from(xml: xmlPoint)
+                    PointChanges.analyze(prev: prev, point: pt)
+                    allPoints.append(pt)
+                    prev = pt
                 }
             }
         }
 
-        let movingPoints = StopFilter.analyze(points: allPoints)
-        for pt in movingPoints {
+        let stopDetector = StopDetector().analyze(points: allPoints)
+        for pt in stopDetector.movingPoints {
             checkForNewRun(pt)
             self.points.append(pt)
         }
         addRun()
-        runs = StopFilter.analyze(runs: runs)
+        // runs = StopFilter.analyze(runs: runs)
 
-        addTrack()
+        let (chain,removed) = Chain.build(stops: stopDetector.stopPoints, runs: runs)
+
+        let goodRuns = Chain.toRuns(chain: chain)
+        let stops = Chain.toStops(chain: chain)
+        let removedRuns = Chain.toRuns(chain: removed)
+        self.tracks.append(GpsTrack(runs: goodRuns))
+
+        // addTrack()
 
         if tracks.count == 0 {
             return (nil, nil)
@@ -69,15 +78,14 @@ public class TrackParser {
             }
         }
 
-// print("stop points:")
-// StopFilter.emit()
-
         let gps = Gps(
             path: inputFile.path.deletingPathPrefix(base),
             tracks: tracks,
-            stops: StopFilter.stopPoints,
+            stops: stopDetector.stopPoints,
+            removedRuns: removedRuns,
             tzInfo: timezoneInfo)
 
+/*
 print("gps: \(gps)")
 for t in gps.tracks {
     print("Track: \(t)")
@@ -94,7 +102,7 @@ for t in gps.tracks {
         prevRun = r
     }
 }
-
+*/
         var distanceKm: Double = 0.0
         addName(tracks.first!.runs.first!.points.first!)
         addName(tracks.last!.runs.last!.points.last!)
@@ -134,21 +142,6 @@ for t in gps.tracks {
         }
 
         return (gps, exportedTrack)
-    }
-
-    fileprivate func createPoint(_ prev: GpsPoint?, _ xml: XML) -> GpsPoint {
-        let latitude = xml["@lat"].doubleValue
-        let longitude = xml["@lon"].doubleValue
-        let elevation = xml["ele"].doubleValue
-        let time = GpsPoint.dateTimeFormatter.date(from: xml["time"].stringValue)!
-        let course = Int(xml["course"].doubleValue)
-        let speedMs = xml["speed"].doubleValue
-
-        let pt = GpsPoint(latitude: latitude, longitude: longitude,
-            elevation: elevation, time: time, course: course, speedMs: speedMs)
-
-        PointChanges.analyze(prev: prev, point: pt)
-        return pt
     }
 
     fileprivate func checkForNewRun(_ pt: GpsPoint) {

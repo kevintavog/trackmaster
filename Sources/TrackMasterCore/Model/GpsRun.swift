@@ -11,7 +11,7 @@ public class GpsRun : Codable, CustomStringConvertible {
     public let excessive: Int
 
 
-    init(points: [GpsPoint]) {
+    public init(points: [GpsPoint]) {
         self.points = points
 
 points[0].prevSpeedChange = 0
@@ -53,10 +53,6 @@ var calc = 0
 points.forEach { if $0.prevCourseChange >= 90 { calc += 1}; if $0.prevSpeedChange > 9.9 { calc += 1} }
 // print(" \(points[0].time); of \(points.count), excessive: \(excessive)")
 self.excessive = calc
-
-// if points.count < 40 {
-//     points.forEach { print("    \($0.prevCourseChange) and \($0.prevSpeedChange)")}
-// }
 
             self.bounds = bnds
             self.transportationTypes = Array(transportTypes.map { (key, value) in

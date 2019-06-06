@@ -80,6 +80,22 @@ public class Geo {
         return false
     }
 
+    static public func contains(bounds: Bounds, point: GeoPoint) -> Bool {
+        if point.latitude >= bounds.min.latitude && point.latitude <= bounds.max.latitude
+            && point.longitude >= bounds.min.longitude && point.longitude <= bounds.max.longitude {
+                return true
+        }
+        return false
+    }
+
+    static public func contains(rectangle: GeoRectangle, point: GeoPoint) -> Bool {
+        if point.latitude >= rectangle.minLat && point.latitude <= rectangle.maxLat
+            && point.longitude >= rectangle.minLon && point.longitude <= rectangle.maxLon {
+                return true
+        }
+        return false
+    }
+
     static public func countWithin(rectangle: GeoRectangle, points: [GeoPoint]) -> Int {
         var count = 0
         for p in points {
