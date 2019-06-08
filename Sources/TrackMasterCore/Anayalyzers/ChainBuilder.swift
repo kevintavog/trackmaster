@@ -74,55 +74,9 @@ public class Chain {
         builder.calculateOffsets()
         builder.calculateStopOffsets()
 
-/*
-print("Original chain:")
-for c in builder.ordered {
-    print("  \(c)")
-}
-
-print("Diffs:")
-var ps: ChainLink? = nil
-for c in builder.ordered {
-    if c.type == .stop {
-        print("  stop: \(c.begin.time), \(c.nextStopMeters) m, \(c.nextStopSeconds)")
-        ps = c
-    } else {
-        var extra = ""
-        let r = c.instance as! GpsRun
-        if let prevStop = ps {
-            var metersPercent = 0
-            if prevStop.nextStopMeters > 0 {
-                metersPercent = Int(100 * (1000.0 * r.kilometers) / Double(prevStop.nextStopMeters))
-            } 
-            var secondsPercent = 0
-            if prevStop.nextStopSeconds > 0 {
-                secondsPercent = Int(100 * r.seconds / prevStop.nextStopSeconds)
-            }
-            extra = " [distance: \(metersPercent)%, time: \(secondsPercent)%]"
-        }
-        print("  run: \(c.begin.time), \(Int(1000 * r.kilometers)) m, \(r.seconds) \(extra)")
-    }
-}
-*/
-
         // builder.consolidate()
         // builder.removeBadRuns()
-builder.finalChain = builder.ordered
-/*
-print("Consolidated chain:")
-for c in builder.consolidated {
-    print("  \(c)")
-}
-
-*/
-
-/*
-print("final chain:")
-for c in builder.finalChain {
-    print("  \(c)")
-}
-*/
-        return (builder.finalChain, builder.removedLinks)
+        return (builder.ordered, builder.removedLinks)
     }
 
     private let stops: [GpsPoint]

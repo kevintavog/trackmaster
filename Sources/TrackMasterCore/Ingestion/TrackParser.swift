@@ -75,8 +75,6 @@ public class TrackParser {
             }
         }
 
-        let rasterizer = Rasterizer(points: stops)
-
         let gps = Gps(
             path: inputFile.path.deletingPathPrefix(base),
             tracks: tracks,
@@ -85,26 +83,6 @@ public class TrackParser {
             clusters: stopDetector.clusters,
             tzInfo: timezoneInfo)
 
-        // gps.cells = rasterizer.topByDuration
-
-/*
-print("gps: \(gps)")
-for t in gps.tracks {
-    print("Track: \(t)")
-    var prevRun: GpsRun? = nil
-    for r in t.runs {
-        var extra = ""
-        if let pr = prevRun {
-            let gapSeconds = r.points.first!.seconds(between: pr.points.last!)
-            let gapMeters = 1000 * r.points.first!.distanceKm(between: pr.points.last!)
-            extra = "; \(gapSeconds) second; " +
-                "\(Int(gapMeters)) meters gap"
-        }
-        print("  run: \(r)\(extra)")
-        prevRun = r
-    }
-}
-*/
         var distanceKm: Double = 0.0
         addName(tracks.first!.runs.first!.points.first!)
         addName(tracks.last!.runs.last!.points.last!)

@@ -1,5 +1,24 @@
 import Foundation
 
+private class ClusterAndPoints {
+    var clusterStop: ClusterStop
+    var points: [GpsPoint]
+
+    init(_ points: [GpsPoint]) {
+        self.clusterStop = ClusterStop(points: points)
+        self.points = points
+    }
+
+    public func extend(point: GpsPoint) {
+        clusterStop.extend(point: point)
+        if point.time <= points.first!.time {
+            points.insert(point, at: 0)
+        } else if point.time >= points.last!.time {
+            points.append(point)
+        }
+    }
+}
+
 // Responsible for filtering out sequences of points that are likely stops
 // From https://medium.com/strava-engineering/the-global-heatmap-now-6x-hotter-23fc01d301de
 //  Referenced from https://gis.stackexchange.com/questions/89451/how-to-calculate-stop-points-from-a-set-of-gps-tracklogs
@@ -20,6 +39,7 @@ public class StopDetector {
 
     static fileprivate let averageSeconds = 10.0
     fileprivate var movingAverage = [GpsPoint]()
+    fileprivate var clusterAndPoints = [ClusterAndPoints]()
 
     public var movingPoints = [GpsPoint]()
     public var stopPoints = [GpsPoint]()
@@ -103,10 +123,6 @@ print("stop: \(gpsStops.last!) \(extra)")
             }
         }
 
-// for cur in 0..<stopPoints.count {
-//     let neighbors = nearbyStops(cur)
-//     // print("\(stopPoints[cur]) has \(neighbors.count) neighbors")
-// }
         buildClusters()
 
         stopPoints = stopPoints.filter { notInCluster($0) }
@@ -114,8 +130,8 @@ print("stop: \(gpsStops.last!) \(extra)")
     }
 
     fileprivate func notInCluster(_ point: GpsPoint) -> Bool {
-        for c in clusters {
-            if c.contains(point: point) {
+        for c in clusterAndPoints {
+            if c.clusterStop.contains(point: point) {
                 return false
             }
         }
@@ -143,19 +159,19 @@ print("stop: \(gpsStops.last!) \(extra)")
             clusterPoints.append(pt)
             if !isNearby(pt, next) {
                 if clusterPoints.count > 2 {
-                    self.clusters.append(ClusterStop(points: clusterPoints))
+                    clusterAndPoints.append(ClusterAndPoints(clusterPoints))
                 }
                 clusterPoints.removeAll(keepingCapacity: true)
             }
         }
 
         if clusterPoints.count > 2 {
-            self.clusters.append(ClusterStop(points: clusterPoints))
+            clusterAndPoints.append(ClusterAndPoints(clusterPoints))
         }
 
         // For each cluster, check both before and after for any points that ought to be
-        // within the cluster, but weren't nearby a neighbor
-        for c in clusters {
+        // within the cluster, but weren't nearby an immediate neighbor (by time)
+        for c in clusterAndPoints {
             var index = findStopIndex(c.points.first!)
             while (index > 0) {
                 index -= 1
@@ -176,51 +192,22 @@ print("stop: \(gpsStops.last!) \(extra)")
                 }
             }
         }
+
+        // In some cases, clusters will merge together with the previous step.
+        // Remove duplicates.
+        for cap in clusterAndPoints {
+            if let last = clusters.last {
+                if last.startTime != cap.clusterStop.startTime {
+                    clusters.append(cap.clusterStop)
+                }
+            } else {
+                clusters.append(cap.clusterStop)
+            }
+        }
     }
 
     fileprivate func findStopIndex(_ pt: GpsPoint) -> Int {
         return stopPoints.firstIndex(where: { $0.time == pt.time }) ?? -1
-    }
-
-    fileprivate func nearbyStops(_ curIndex: Int) -> [GpsPoint] {
-        let curStop = stopPoints[curIndex]
-        var neighbors = [GpsPoint]()
-
-        // Find those before this
-        var index = curIndex - 1
-        while (index >= 0) {
-            let pt = stopPoints[index]
-            if isNearby(pt, curStop) {
-                neighbors.append(pt)
-            }
-            index -= 1
-        }
-
-        /// Find those after this
-        index = curIndex + 1
-        while (index < stopPoints.count) {
-            let pt = stopPoints[index]
-            if isNearby(pt, curStop) {
-                neighbors.append(pt)
-            }
-            index += 1
-        }
-
-        if neighbors.count > 0 {
-            let lat = (curStop.latitude + neighbors.map { $0.latitude }.reduce(0.0, +)) / Double(neighbors.count + 1)
-            let lon = (curStop.longitude + neighbors.map { $0.longitude }.reduce(0.0, +)) / Double(neighbors.count + 1)
-            let distanceMeters = Int(1000 * Geo.distance(lat1: lat, lon1: lon, lat2: curStop.latitude, lon2: curStop.longitude))
-            var minDistance = distanceMeters
-            var minSeconds = curStop.seconds(between: neighbors[0])
-            for pt in neighbors {
-                minDistance = min(pt.distanceMeters(between: curStop), minDistance)
-                minSeconds = min(pt.seconds(between: curStop), minSeconds)
-            }
-            print("\(curStop.time): (\(neighbors.count)), distance from center: \(distanceMeters), min: \(minDistance); "
-                + "min seconds: \(minSeconds) [\(lat),\(lon)]")
-        }
-
-        return neighbors
     }
 
     fileprivate func isNearby(_ pt1: GpsPoint, _ points: [GpsPoint]) -> Bool {

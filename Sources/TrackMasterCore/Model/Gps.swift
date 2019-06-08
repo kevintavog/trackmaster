@@ -14,7 +14,6 @@ public class Gps: Codable, CustomStringConvertible {
     public let durationSeconds: Double
     public let bounds: Bounds
 
-    public var cells = [RasterCell]()
 
     public init(path: String, 
             tracks: [GpsTrack], removedRuns: [GpsRun],
