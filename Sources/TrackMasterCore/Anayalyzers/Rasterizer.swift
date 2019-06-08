@@ -22,23 +22,6 @@ public class RasterCell: Codable, CustomStringConvertible {
             maxLon: minLon + 0.001)
     }
 
-    public func categorize(point: GpsPoint) -> RasterCategory {
-        return Geo.contains(bounds: bounds, point: point) ? .startsAndEnds : .nothing        
-    }
-
-    public func categorize(run: GpsRun) -> RasterCategory {
-        let starts = Geo.contains(bounds: bounds, point: run.points.first!)
-        let ends = Geo.contains(bounds: bounds, point: run.points.last!)
-        if starts && ends {
-            return .startsAndEnds
-        } else if starts {
-            return .starts
-        } else if ends {
-            return .ends
-        }
-        return .nothing
-    }
-
     public var description: String {
         return "\(id), \(count) points, \(seconds) seconds"
     }
@@ -49,13 +32,6 @@ public class RasterCell: Codable, CustomStringConvertible {
     static fileprivate func toId(_ lat: Double, _ lon: Double) -> String {
         return String(format: "%0.3f,%0.3f", convert(lat), convert(lon))
     }
-}
-
-public enum RasterCategory: String {
-    case starts = "starts"
-    case ends = "ends"
-    case startsAndEnds = "startsAndEnds"
-    case nothing = "nothing"
 }
 
 public class Rasterizer {

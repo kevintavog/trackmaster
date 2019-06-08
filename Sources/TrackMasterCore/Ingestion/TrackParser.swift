@@ -52,7 +52,6 @@ public class TrackParser {
             self.points.append(pt)
         }
         addRun()
-        // runs = StopFilter.analyze(runs: runs)
 
         let (chain,removed) = Chain.build(stops: stopDetector.stopPoints, runs: runs)
 
@@ -60,8 +59,6 @@ public class TrackParser {
         let stops = Chain.toStops(chain: chain)
         let removedRuns = Chain.toRuns(chain: removed)
         self.tracks.append(GpsTrack(runs: goodRuns))
-
-        // addTrack()
 
         if tracks.count == 0 {
             return (nil, nil)
@@ -78,12 +75,17 @@ public class TrackParser {
             }
         }
 
+        let rasterizer = Rasterizer(points: stops)
+
         let gps = Gps(
             path: inputFile.path.deletingPathPrefix(base),
             tracks: tracks,
-            stops: stopDetector.stopPoints,
             removedRuns: removedRuns,
+            stops: stopDetector.stopPoints,
+            clusters: stopDetector.clusters,
             tzInfo: timezoneInfo)
+
+        // gps.cells = rasterizer.topByDuration
 
 /*
 print("gps: \(gps)")

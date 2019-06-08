@@ -59,6 +59,7 @@ let command = Command(usage: "Validator", flags: flags) { flags, args in
         do {
             let allPoints = try parseXml(file: URL(fileURLWithPath: inputName))
             let stopDetector = StopDetector().analyze(points: allPoints)
+            let clusters = stopDetector.clusters
             let rawRuns = buildRuns(points: stopDetector.movingPoints)
             let (chain,removed) = Chain.build(stops: stopDetector.stopPoints, runs: rawRuns)
 
@@ -74,6 +75,12 @@ print("Removed:")
             for r in removedRuns {
                 print("  \(r)")
             }
+print("Clusters:")
+            for c in clusters {
+                print("  \(c)")
+            }
+print("First stop: \(stops.first!.time)")
+print("Last stop: \(stops.last!.time)")
 
 /*
             var removed = [ChainLink]()

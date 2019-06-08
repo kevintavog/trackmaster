@@ -66,6 +66,11 @@ public class GpsPoint: Codable, GeoPoint, CustomStringConvertible {
         return abs(self.time.timeIntervalSince(between.time))
     }
 
+    // Return the distance, in meters, between two points
+    public func distanceMeters(between: GpsPoint) -> Int {
+        return Int(1000 * distanceKm(between: between))
+    }
+
     // Return the distance, in kilometers, between two points
     public func distanceKm(between: GpsPoint) -> Double {
         return Geo.distance(pt1: self, pt2: between)

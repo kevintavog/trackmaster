@@ -11,9 +11,14 @@ public class ChainLink: CustomStringConvertible {
     public let type: ChainLinkType
     public let instance: Any
     public var count = 1
+    public var recentStops = 0
+    public var recentDistanceMeters = 0
 
     public var nextSeconds: Double = 0
     public var nextMeters: Int = 0
+    public var nextStopSeconds: Double = 0
+    public var nextStopMeters: Int = 0
+
 
     public init(begin: GpsPoint, end: GpsPoint, type: ChainLinkType, instance: Any) {
         self.begin = begin
@@ -23,7 +28,13 @@ public class ChainLink: CustomStringConvertible {
     }
 
     public var description: String {
-        return "\(type) \(begin.time), next: \(nextMeters) m, \(nextSeconds) s, count=\(count); \(instance)"
+        var extra = ""
+        if type == .stop {
+            extra = "stop: \(nextStopMeters) m, \(nextStopSeconds) s, "
+                + "rs=\(recentStops), rsm=\(recentDistanceMeters), count=\(count)"
+        }
+        return "\(type) \(begin.time), next: \(nextMeters) m, \(nextSeconds) s, "
+            + "\(extra); \(instance)"
     }
 
     public func add(link: ChainLink) {
@@ -58,17 +69,78 @@ public class Chain {
             return ([ChainLink](), [ChainLink]())
         }
 
-        let ordered = orderByTime(stops, runs)
-        calculateOffsets(ordered)
-        return removeBadRuns(consolidate(ordered))
+        let builder = Chain(stops, runs)
+        builder.orderByTime()
+        builder.calculateOffsets()
+        builder.calculateStopOffsets()
+
+/*
+print("Original chain:")
+for c in builder.ordered {
+    print("  \(c)")
+}
+
+print("Diffs:")
+var ps: ChainLink? = nil
+for c in builder.ordered {
+    if c.type == .stop {
+        print("  stop: \(c.begin.time), \(c.nextStopMeters) m, \(c.nextStopSeconds)")
+        ps = c
+    } else {
+        var extra = ""
+        let r = c.instance as! GpsRun
+        if let prevStop = ps {
+            var metersPercent = 0
+            if prevStop.nextStopMeters > 0 {
+                metersPercent = Int(100 * (1000.0 * r.kilometers) / Double(prevStop.nextStopMeters))
+            } 
+            var secondsPercent = 0
+            if prevStop.nextStopSeconds > 0 {
+                secondsPercent = Int(100 * r.seconds / prevStop.nextStopSeconds)
+            }
+            extra = " [distance: \(metersPercent)%, time: \(secondsPercent)%]"
+        }
+        print("  run: \(c.begin.time), \(Int(1000 * r.kilometers)) m, \(r.seconds) \(extra)")
+    }
+}
+*/
+
+        // builder.consolidate()
+        // builder.removeBadRuns()
+builder.finalChain = builder.ordered
+/*
+print("Consolidated chain:")
+for c in builder.consolidated {
+    print("  \(c)")
+}
+
+*/
+
+/*
+print("final chain:")
+for c in builder.finalChain {
+    print("  \(c)")
+}
+*/
+        return (builder.finalChain, builder.removedLinks)
     }
 
-    static public func removeBadRuns(_ chain: [ChainLink]) -> ([ChainLink],[ChainLink]) {
-        var removedLinks = [ChainLink]()
-        var filtered = [ChainLink]()
+    private let stops: [GpsPoint]
+    private let runs: [GpsRun]
+    private var ordered = [ChainLink]()
+    private var consolidated = [ChainLink]()
+    private var removedLinks = [ChainLink]()
+    private var finalChain = [ChainLink]()
+    private var recentStops = [ChainLink]()
+    private init(_ stops: [GpsPoint], _ runs: [GpsRun]) {
+        self.stops = stops
+        self.runs = runs
+    }
+
+    fileprivate func removeBadRuns() {
         var prevStop: ChainLink? = nil
         var previousLink: ChainLink? = nil
-        for c in chain {
+        for c in consolidated {
             if c.type == .run {
                 if let ps = prevStop {
                     var prevScore = 0
@@ -94,34 +166,28 @@ public class Chain {
                 }
             }
             if previousLink == nil || (previousLink != nil && previousLink!.type != c.type) {
-                filtered.append(c)
+                finalChain.append(c)
             }
             previousLink = c
         }
-
-        return (filtered, removedLinks)
     }
 
-    static fileprivate func consolidate(_ original: [ChainLink]) -> [ChainLink] {
-        var chain = [ChainLink]()
-        var prevLink = original[0]
-        for l in original {
+    fileprivate func consolidate(){
+        var prevLink = ordered[0]
+        for l in ordered {
             if l.type == prevLink.type {
                 prevLink.add(link: l)
             } else {
-                chain.append(prevLink)
+                consolidated.append(prevLink)
                 prevLink = l
             }
         }
-        if prevLink.begin.time != chain.last!.begin.time {
-            chain.append(prevLink)
+        if prevLink.begin.time != ordered.last!.begin.time {
+            consolidated.append(prevLink)
         }
-
-        return chain
     }
 
-    static fileprivate func orderByTime(_ stops: [GpsPoint], _ runs: [GpsRun]) -> [ChainLink] {
-        var chain = [ChainLink]()
+    fileprivate func orderByTime() {
         var runIndex = 0
         var stopIndex = 0
 
@@ -160,18 +226,46 @@ public class Chain {
                 }
             }
 
-            chain.append(ChainLink(begin: beginPoint!, end: endPoint!, type: type, instance: instance!))
+            let link = ChainLink(begin: beginPoint!, end: endPoint!, type: type, instance: instance!)
+            updateRecent(link)
+            ordered.append(link)
         }
-
-        return chain
     }
 
-    static fileprivate func calculateOffsets(_ chain: [ChainLink]) {
-        for idx in 0..<chain.count-1 {
-            let cur = chain[idx]
-            let next = chain[idx + 1]
+    fileprivate func calculateOffsets() {
+        for idx in 0..<ordered.count-1 {
+            let cur = ordered[idx]
+            let next = ordered[idx + 1]
             cur.nextSeconds = cur.end.seconds(between: next.begin)
             cur.nextMeters = Int(1000 * cur.end.distanceKm(between: next.begin))
         }
+    }
+
+    fileprivate func calculateStopOffsets() {
+        var prevStop: ChainLink? = nil
+        for idx in 0..<ordered.count {
+            let cur = ordered[idx]
+            if cur.type == .stop {
+                if let ps = prevStop {
+                    ps.nextStopSeconds = ps.end.seconds(between: cur.begin)
+                    ps.nextStopMeters = Int(1000 * ps.end.distanceKm(between: cur.begin))
+                }
+                prevStop = cur
+            }
+        }
+    }
+
+    fileprivate func updateRecent(_ l: ChainLink) {
+        if l.type != .stop {
+            return
+        }
+
+        recentStops.append(l)
+        while (l.begin.seconds(between: recentStops.first!.begin) > (10 * 60)) {
+            recentStops.remove(at: 0)
+        }
+
+        l.recentStops = recentStops.count
+        l.recentDistanceMeters = Int(1000 * l.begin.distanceKm(between: recentStops.first!.begin))
     }
 }

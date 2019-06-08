@@ -4,22 +4,26 @@ import Foundation
 // From https://medium.com/strava-engineering/the-global-heatmap-now-6x-hotter-23fc01d301de
 //  Referenced from https://gis.stackexchange.com/questions/89451/how-to-calculate-stop-points-from-a-set-of-gps-tracklogs
 // If the magnitude of the time averaged velocity of an activity stream gets too low 
-// at any point, subsequent points from that activity are filtered until the activity
+// at any point, subsequent points from that activity are movingPoints until the activity
 // breaches a specific radius in distance from the initial stopped point.
 public class StopDetector {
     // fileprivate let tooSlowAverageKmH = 0.4
     static fileprivate let tooSlowAverageKmH = 0.30
-    static fileprivate let ignoreRadiusKm = 0.009
+    static fileprivate let ignoreRadiusKm = 0.005
 
     static fileprivate let minRunSeconds = 20.0
     static fileprivate let minRunDistanceKm = 20.0 / 1000.0    // (meters => kilometers)
+
+    static fileprivate let maxClusterSeconds = 60.0
+    static fileprivate let maxClusterMeters = 60
+
 
     static fileprivate let averageSeconds = 10.0
     fileprivate var movingAverage = [GpsPoint]()
 
     public var movingPoints = [GpsPoint]()
     public var stopPoints = [GpsPoint]()
-    public var removedRuns = [GpsRun]()
+    public var clusters = [ClusterStop]()
 
     public init() {
     }
@@ -29,92 +33,8 @@ public class StopDetector {
         return self
     }
 
-/*
-    static public func filterStops(start: Date, end: Date) -> [GpsPoint] {
-        return stopPoints.filter { $0.time >= start && $0.time <= end}
-    }
-
-    static public func filterRuns(start: Date, end: Date) -> [GpsRun] {
-        return removedRuns.filter { $0.points.first!.time >= start && $0.points.last!.time <= end}
-    }
-
-    static public func overlapStops(points: [GpsPoint]) -> Int {
-        var count = 0
-        for pt in points {
-            stopRects.forEach { count += $0.within(point: pt ) ? 1 : 0}
-        }
-        return count
-    }
-
-    static public func emitOverlapping(runs: [GpsRun]) {
-        emitOverlapping(stops: stopPoints, runs: runs)
-    }
-
-    static public func emitOverlapping(stops: [GpsPoint], runs: [GpsRun]) {
-        var runIndex = 0
-        var stopIndex = 0
-        let prevPoint = GeoPointInstance(point: stops[0])
-        var prevTime = stops[0].time
-        while (runIndex < runs.count && stopIndex < stops.count) {
-            let r = runs[runIndex]
-            let s = stops[stopIndex]
-            if r.points.first!.time < s.time {
-                let movement = Int(1000 * r.points.first!.distanceKm(between: r.points.last!))
-                let meters = Int(Geo.distance(pt1: r.points.last!, pt2: prevPoint) * 1000)
-                let last = "\(abs(r.points.first!.time.timeIntervalSince(prevTime))) seconds, \(meters) meters"
-                print("run: \(r.seconds) seconds, \(Int(1000 * r.kilometers)) meters @\(r.points.first!.time) / \(movement), \(last)")
-                runIndex += 1
-
-                prevPoint.latitude = r.points.last!.latitude
-                prevPoint.longitude = r.points.last!.longitude
-                prevTime = r.points.last!.time
-            } else {
-                let meters = Int(Geo.distance(pt1: s, pt2: prevPoint) * 1000)
-                let last = "\(abs(s.time.timeIntervalSince(prevTime))) seconds, \(meters) meters"
-                print("stop: @\(s.time), \(last)")
-
-                prevPoint.latitude = s.latitude
-                prevPoint.longitude = s.longitude
-                prevTime = s.time
-                stopIndex += 1
-            }
-        }
-    }
-
-    static public func emit() {
-        var prev: GpsPoint? = nil
-        for pt in stopPoints {
-            var extra = ""
-            if let r = prev {
-                let distance = r.distanceKm(between: pt)
-                let seconds = r.seconds(between: pt)
-                extra = ", \(Int(distance * 1000)) meters and \(seconds) from previous"
-            }
-            print("\(pt)\(extra)")
-            prev = pt
-        }
-    }
-
-    static public func analyze(points: [GpsPoint]) -> [GpsPoint] {
-        return StopFilter().filter(points)
-    }
-*/
-/*
-    static public func analyze(runs: [GpsRun]) -> [GpsRun] {
-        var firstPass = [GpsRun]()
-        for r in runs {
-            if r.seconds > minRunSeconds && r.kilometers > minRunDistanceKm {
-                firstPass.append(r)
-            } else {
-                removedRuns.append(r)
-            }
-        }
-
-        return firstPass
-    }
-*/
     fileprivate func filter(_ points: [GpsPoint]) -> [GpsPoint] {
-        var filtered = [GpsPoint]()
+        var movingPoints = [GpsPoint]()
         var discardRadiusPoint: GpsPoint? = nil
         var discardPoints = [GpsPoint]()
 
@@ -132,6 +52,16 @@ public class StopDetector {
                     continue
                 }
 
+/*
+gpsStops.append(GpsStop(points: discardPoints))
+var extra = ""
+if gpsStops.count > 1 {
+    let prev = gpsStops[gpsStops.count - 2]
+    let m = Int(1000 * prev.points.last!.distanceKm(between: gpsStops.last!.points.first!))
+    extra = "(\(prev.points.last!.seconds(between: gpsStops.last!.points.first!)) seconds, \(m) meters)"
+}
+print("stop: \(gpsStops.last!) \(extra)")
+*/
                 discardRadiusPoint = nil
                 discardPoints.removeAll(keepingCapacity: true)
             }
@@ -143,11 +73,11 @@ public class StopDetector {
             if pt.movingAverageKmH < StopDetector.tooSlowAverageKmH {
                 discardRadiusPoint = pt
                 stopPoints.append(pt)
-                while let last = filtered.last {
+                while let last = movingPoints.last {
                     if pt.distanceKm(between: last) < StopDetector.ignoreRadiusKm 
                             || last.movingAverageKmH < StopDetector.tooSlowAverageKmH {
                         discardPoints.insert(last, at: 0)
-                        filtered.removeLast()
+                        movingPoints.removeLast()
                     } else {
                         break
                     }
@@ -164,16 +94,32 @@ public class StopDetector {
             }
 
             if keep {
-                if filtered.count > 0 {
-                    PointChanges.analyze(prev: filtered.last, point: pt)
+                if movingPoints.count > 0 {
+                    PointChanges.analyze(prev: movingPoints.last, point: pt)
                 } else {
                     PointChanges.clear(point: pt)
                 }
-                filtered.append(pt)
+                movingPoints.append(pt)
             }
         }
 
-        return filtered
+// for cur in 0..<stopPoints.count {
+//     let neighbors = nearbyStops(cur)
+//     // print("\(stopPoints[cur]) has \(neighbors.count) neighbors")
+// }
+        buildClusters()
+
+        stopPoints = stopPoints.filter { notInCluster($0) }
+        return movingPoints.filter { notInCluster($0) }
+    }
+
+    fileprivate func notInCluster(_ point: GpsPoint) -> Bool {
+        for c in clusters {
+            if c.contains(point: point) {
+                return false
+            }
+        }
+        return true
     }
 
     fileprivate func updateAverage(_ pt: GpsPoint) -> Double {
@@ -187,5 +133,106 @@ public class StopDetector {
             totalKmh += point.calculatedSpeedKmHFromPrevious
         }
         return totalKmh / Double(movingAverage.count)
+    }
+
+    fileprivate func buildClusters() {
+        var clusterPoints = [GpsPoint]()
+        for idx in 0..<stopPoints.count-1 {
+            let pt = stopPoints[idx]
+            let next = stopPoints[idx + 1]
+            clusterPoints.append(pt)
+            if !isNearby(pt, next) {
+                if clusterPoints.count > 2 {
+                    self.clusters.append(ClusterStop(points: clusterPoints))
+                }
+                clusterPoints.removeAll(keepingCapacity: true)
+            }
+        }
+
+        if clusterPoints.count > 2 {
+            self.clusters.append(ClusterStop(points: clusterPoints))
+        }
+
+        // For each cluster, check both before and after for any points that ought to be
+        // within the cluster, but weren't nearby a neighbor
+        for c in clusters {
+            var index = findStopIndex(c.points.first!)
+            while (index > 0) {
+                index -= 1
+                if isNearby(stopPoints[index], c.points) {
+                    c.extend(point: stopPoints[index])
+                } else {
+                    break
+                }
+            }
+
+            index = findStopIndex(c.points.last!)
+            while (index > 0 && (index < stopPoints.count - 1)) {
+                index += 1
+                if isNearby(stopPoints[index], c.points) {
+                    c.extend(point: stopPoints[index])
+                } else {
+                    break
+                }
+            }
+        }
+    }
+
+    fileprivate func findStopIndex(_ pt: GpsPoint) -> Int {
+        return stopPoints.firstIndex(where: { $0.time == pt.time }) ?? -1
+    }
+
+    fileprivate func nearbyStops(_ curIndex: Int) -> [GpsPoint] {
+        let curStop = stopPoints[curIndex]
+        var neighbors = [GpsPoint]()
+
+        // Find those before this
+        var index = curIndex - 1
+        while (index >= 0) {
+            let pt = stopPoints[index]
+            if isNearby(pt, curStop) {
+                neighbors.append(pt)
+            }
+            index -= 1
+        }
+
+        /// Find those after this
+        index = curIndex + 1
+        while (index < stopPoints.count) {
+            let pt = stopPoints[index]
+            if isNearby(pt, curStop) {
+                neighbors.append(pt)
+            }
+            index += 1
+        }
+
+        if neighbors.count > 0 {
+            let lat = (curStop.latitude + neighbors.map { $0.latitude }.reduce(0.0, +)) / Double(neighbors.count + 1)
+            let lon = (curStop.longitude + neighbors.map { $0.longitude }.reduce(0.0, +)) / Double(neighbors.count + 1)
+            let distanceMeters = Int(1000 * Geo.distance(lat1: lat, lon1: lon, lat2: curStop.latitude, lon2: curStop.longitude))
+            var minDistance = distanceMeters
+            var minSeconds = curStop.seconds(between: neighbors[0])
+            for pt in neighbors {
+                minDistance = min(pt.distanceMeters(between: curStop), minDistance)
+                minSeconds = min(pt.seconds(between: curStop), minSeconds)
+            }
+            print("\(curStop.time): (\(neighbors.count)), distance from center: \(distanceMeters), min: \(minDistance); "
+                + "min seconds: \(minSeconds) [\(lat),\(lon)]")
+        }
+
+        return neighbors
+    }
+
+    fileprivate func isNearby(_ pt1: GpsPoint, _ points: [GpsPoint]) -> Bool {
+        for p in points {
+            if isNearby(pt1, p) { return true }
+        }
+        return false
+    }
+
+    fileprivate func isNearby(_ pt1: GpsPoint, _ pt2: GpsPoint) -> Bool {
+        let seconds = pt1.seconds(between: pt2)
+        let meters = pt1.distanceMeters(between: pt2)
+        return seconds < StopDetector.maxClusterSeconds || meters < StopDetector.maxClusterMeters
     }
 }
