@@ -10,7 +10,7 @@ public class HttpCalls {
     static public func connect(baseUrl: String, on worker: Worker) -> Future<HttpCalls> {
         let clientPromise = worker.eventLoop.newPromise(HttpCalls.self)
         let url = URLRequest(url: URL(string: baseUrl)!)
-        HTTPClient.connect(hostname: url.url!.host!, port: url.url!.port!, on: worker) { error in
+        HTTPClient.connect(hostname: url.url!.host!, port: url.url!.port ?? 80, on: worker) { error in
             clientPromise.fail(error: error)
         }.do() { client in
             let calls = HttpCalls(client: client, worker: worker)
