@@ -67,7 +67,7 @@ print("inserting track: \(track!)")
                 let _ = try es.index(track: track!).wait()
                 try GpsRepository.save(gps: gps!)
             } else {
-                print("Unable to parse \(singleFile)")
+                print("No usable data in \(singleFile)")
             }
         } catch {
             fail(statusCode: 2, errorMessage: "Failed processing: \(error)")
@@ -83,13 +83,14 @@ print("inserting track: \(track!)")
             var count = 0
             for f in files {
                 if try force || ShouldCreateOrUpdate(es, trackFolder, f) {
+print("Parsing \(f)")
                     let (gps, track) = try TrackParser.parse(trackFolder, f)
                     if track != nil {
                         let _ = try es.index(track: track!).wait()
                         try GpsRepository.save(gps: gps!)
                         print("inserted \(f.path) - \(track!.id)")
                     } else {
-                        print("Unable to parse \(f)")
+                        print("No usable data in \(f)")
                     }
 
                     count += 1

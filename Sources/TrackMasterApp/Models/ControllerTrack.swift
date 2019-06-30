@@ -8,6 +8,9 @@ public struct ControllerTrack: Codable, Content {
     public let timezoneInfo: TimezoneInfo
     public let startTime: Date?
     public let endTime: Date?
+    public let durationSeconds: Double?
+    public let movingSeconds: Double?
+    public let distanceKilometers: Double?
     public let indexTime: Date?
     public let bounds: Bounds
     public let countryNames: [String]
@@ -24,6 +27,9 @@ public struct ControllerTrack: Codable, Content {
         self.timezoneInfo = track.timezoneInfo
         self.startTime = track.startTime
         self.endTime = track.endTime
+        self.durationSeconds = track.durationSeconds
+        self.movingSeconds = track.movingSeconds
+        self.distanceKilometers = track.distanceKilometers
         self.indexTime = track.indexTime
         self.bounds = track.bounds
         self.countryNames = ControllerTrack.namesByCount(track.countryNames)

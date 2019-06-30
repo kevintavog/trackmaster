@@ -60,7 +60,14 @@ public class TrackParser {
         let removedRuns = Chain.toRuns(chain: removed)
         self.tracks.append(GpsTrack(runs: goodRuns))
 
-        if tracks.count == 0 {
+        var numPoints = 0
+        for t in tracks {
+            for r in t.runs {
+                numPoints += r.points.count
+            }
+        }
+
+        if numPoints == 0 {
             return (nil, nil)
         }
 
@@ -97,10 +104,16 @@ public class TrackParser {
                 }
             }
         }
+        for cs in stopDetector.clusters {
+            addName(cs.bounds.center)
+        }
 
         var exportedTrack = Track(
-            path: inputFile.path.deletingPathPrefix(base), checksum: checksum, timezoneInfo: gps.timezoneInfo,
-            startTime: gps.startTime, endTime: gps.endTime, bounds: gps.bounds)
+            path: inputFile.path.deletingPathPrefix(base), checksum: checksum,
+            timezoneInfo: gps.timezoneInfo,
+            startTime: gps.startTime, endTime: gps.endTime, bounds: gps.bounds,
+            durationSeconds: gps.durationSeconds, movingSeconds: gps.movingSeconds, 
+            distanceKilometers: gps.distanceKilometers)
 
         // Accumulate all name entries for search weighting
         names.forEach {
@@ -156,7 +169,7 @@ public class TrackParser {
         }
     }
 
-    fileprivate func addName(_ pt: GpsPoint) {
+    fileprivate func addName(_ pt: GeoPoint) {
         if ReverseNameLookupServer.count > 0 {
             if let name = try? TrackParser.reverseNameLookupClient.get(lat: pt.latitude, lon: pt.longitude, distance: 500).wait() {
                 self.names.append(name)

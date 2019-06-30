@@ -12,6 +12,7 @@ public class Gps: Codable, CustomStringConvertible {
     public let endTime: Date
     public let distanceKilometers: Double
     public let durationSeconds: Double
+    public let movingSeconds: Double
     public let bounds: Bounds
 
 
@@ -31,15 +32,18 @@ public class Gps: Codable, CustomStringConvertible {
         self.durationSeconds = tracks.first!.runs.first!.points.first!.seconds(between: tracks.last!.runs.last!.points.last!)
 
         var distance = 0.0
+        var seconds = 0.0
         let bnds = Bounds()
         for t in tracks {
             distance += t.distanceKilometers
+            seconds += t.durationSeconds
             bnds.min.latitude = min(bnds.min.latitude, t.bounds.min.latitude)
             bnds.min.longitude = min(bnds.min.longitude, t.bounds.min.longitude)
             bnds.max.latitude = max(bnds.max.latitude, t.bounds.max.latitude)
             bnds.max.longitude = max(bnds.max.longitude, t.bounds.max.longitude)
         }
 
+        self.movingSeconds = seconds
         self.distanceKilometers = distance
         self.bounds = bnds
     }

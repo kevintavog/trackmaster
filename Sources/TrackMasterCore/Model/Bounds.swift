@@ -13,4 +13,12 @@ public struct Bounds: Codable {
         self.min = GeoPointInstance(latitude: minLat, longitude: minLon)
         self.max = GeoPointInstance(latitude: maxLat, longitude: maxLon)        
     }
+
+    public var center: GeoPointInstance {
+        get {
+            return GeoPointInstance(
+                latitude: min.latitude + ((max.latitude - min.latitude) / 2.0),
+                longitude: min.longitude + ((max.longitude - min.longitude) / 2.0))
+        }
+    }
 }

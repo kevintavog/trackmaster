@@ -9,6 +9,9 @@ public struct Track: Codable {
     public var endTime: Date
     public let indexTime: Date
     public var bounds: Bounds
+    public let durationSeconds: Double?
+    public let movingSeconds: Double?
+    public let distanceKilometers: Double?
     public var countryNames: [String]? = [String]()
     public var countryCodes: [String]? = [String]()
     public var stateNames: [String]? = [String]()
@@ -17,7 +20,8 @@ public struct Track: Codable {
 
 
     public init(path: String, checksum: String, timezoneInfo: TimezoneInfo, 
-            startTime: Date, endTime: Date, bounds: Bounds) {
+            startTime: Date, endTime: Date, bounds: Bounds,
+            durationSeconds: Double, movingSeconds: Double, distanceKilometers: Double) {
         self.id = path.urlEscape()
         self.path = path
         self.checksum = checksum
@@ -25,6 +29,9 @@ public struct Track: Codable {
         self.startTime = startTime
         self.endTime = endTime
         self.bounds = bounds
+        self.durationSeconds = durationSeconds
+        self.movingSeconds = movingSeconds
+        self.distanceKilometers = distanceKilometers
         self.indexTime = Date()
     }
 
