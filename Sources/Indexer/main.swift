@@ -26,14 +26,14 @@ private let eventGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
 let createScriptFlag = Flag(shortName: "c", longName: "createScript", type: String.self, description: "The script for creating the ElasticSearch index, if necessary", required: false)
 let elasticUrlFlag = Flag(shortName: "e", longName: "elasticUrl", type: String.self, description: "The URL for the ElasticSearch service", required: true)
 let forceFlag = Flag(longName: "force", type: Bool.self, description: "Force the updates", required: false)
-let gpsFolderFlag = Flag(shortName: "g", longName: "gpsFolder", type: String.self, description: "The folder the GPS files will be written.", required: true)
+let analyzedFolderFlag = Flag(shortName: "a", longName: "analyzedFolder", type: String.self, description: "The folder the analyzed GPS files will be written.", required: true)
 let maxCountFlag = Flag(longName: "max", type: Int.self, description: "The maximum files to parse", required: false)
 let reverseNameUrlFlag = Flag(shortName: "r", longName: "reverseNameUrl", type: String.self, description: "The URL for the ReverseName service", required: true)
 let singleFileOverrideFlag = Flag(shortName: "s", longName: "singleFile", type: String.self, description: "The single file to process.", required: false)
 let timezoneLookupUrlFlag = Flag(shortName: "z", longName: "timezoneLookupUrl", type: String.self, description: "The URL for the Timezone Lookup service", required: false)
 let trackFolderFlag = Flag(shortName: "t", longName: "trackFolder", type: String.self, description: "The folder containing the tracks.", required: true)
 
-let flags = [createScriptFlag, elasticUrlFlag, forceFlag,gpsFolderFlag,  maxCountFlag, 
+let flags = [createScriptFlag, elasticUrlFlag, forceFlag, analyzedFolderFlag, maxCountFlag, 
     reverseNameUrlFlag, singleFileOverrideFlag, timezoneLookupUrlFlag, trackFolderFlag]
 
 let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
@@ -44,7 +44,7 @@ let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
 
     ElasticSearch.ServerUrl = flags.getString(name: "elasticUrl")!
     ReverseNameLookupServer = flags.getString(name: "reverseNameUrl")!
-    GpsRepository.gpsFolder = flags.getString(name: "gpsFolder")
+    GpsRepository.analyzedFolder = flags.getString(name: "analyzedFolder")
     if let tzLookup = flags.getString(name: "timezoneLookupUrl") {
         TimezoneLookupClient.timezoneLookupServer = tzLookup
     }

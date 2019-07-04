@@ -28,7 +28,7 @@ private class ClusterAndPoints {
 public class StopDetector {
     // fileprivate let tooSlowAverageKmH = 0.4
     static fileprivate let tooSlowAverageKmH = 0.30
-    static fileprivate let ignoreRadiusKm = 0.005
+    static fileprivate let ignoreRadiusKm = 0.003
 
     static fileprivate let minRunSeconds = 20.0
     static fileprivate let minRunDistanceKm = 20.0 / 1000.0    // (meters => kilometers)
