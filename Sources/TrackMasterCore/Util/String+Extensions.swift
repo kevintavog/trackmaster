@@ -17,4 +17,10 @@ extension String {
     public func urlEscape() -> String {
         return self.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
     }
+
+    public func subString(_ start: Int, _ end: Int) -> String {
+        let firstIndex = index(startIndex, offsetBy: start)
+        let lastIndex = index(startIndex, offsetBy: end)
+        return String(self[firstIndex...lastIndex])
+    }
 }

@@ -16,8 +16,6 @@ public class TrackParser {
 
 
     private var names = [ReverseNameLookupResponse]()
-    private var points = [GpsPoint]()
-    private var runs = [GpsRun]()
     private var tracks = [GpsTrack]()
     private var timezoneInfo = TimezoneInfo(id: "", tag: "")
     private init() {
@@ -47,17 +45,10 @@ public class TrackParser {
         }
 
         let stopDetector = StopDetector().analyze(points: allPoints)
-        for pt in stopDetector.movingPoints {
-            checkForNewRun(pt)
-            self.points.append(pt)
-        }
-        addRun()
+        let runs = RunBuilder.build(moving: stopDetector.movingPoints, stops: stopDetector.stops)
+        let (chain, removed) = Chain.build(stops: stopDetector.stops, runs: runs)
 
-        let (chain,removed) = Chain.build(stops: stopDetector.stopPoints, runs: runs)
-
-        let goodRuns = Chain.toRuns(chain: chain)
-        let stops = Chain.toStops(chain: chain)
-        let removedRuns = Chain.toRuns(chain: removed)
+        let (goodRuns, stops, removedRuns) = StopConsolidator.process(chain: chain, removed: removed)
         self.tracks.append(GpsTrack(runs: goodRuns))
 
         var numPoints = 0
@@ -86,7 +77,7 @@ public class TrackParser {
             path: inputFile.path.deletingPathPrefix(base),
             tracks: tracks,
             removedRuns: removedRuns,
-            stops: stopDetector.stopPoints,
+            stops: stops,
             clusters: stopDetector.clusters,
             tzInfo: timezoneInfo)
 
@@ -137,41 +128,12 @@ public class TrackParser {
         return (gps, exportedTrack)
     }
 
-    fileprivate func checkForNewRun(_ pt: GpsPoint) {
-        guard let prevPoint = self.points.last else {
-            return
-        }
-
-        var newRun = false
-
-        // More than 20 seconds
-        if prevPoint.seconds(between: pt) > 20.0 {
-            newRun = true
-        }
-
-        if newRun {
-            addRun()
-            PointChanges.clear(point: pt)
-        }
-    }
-
-    fileprivate func addRun() {
-        if self.points.count > 1 {
-            self.runs.append(GpsRun(points: self.points))
-            self.points.removeAll(keepingCapacity: true)
-        }
-    }
-
-    fileprivate func addTrack() {
-        if self.runs.count > 0 {
-            self.tracks.append(GpsTrack(runs: self.runs))
-            self.runs.removeAll(keepingCapacity: true)
-        }
-    }
-
     fileprivate func addName(_ pt: GeoPoint) {
         if ReverseNameLookupServer.count > 0 {
-            if let name = try? TrackParser.reverseNameLookupClient.get(lat: pt.latitude, lon: pt.longitude, distance: 500).wait() {
+            if let name = try? TrackParser.reverseNameLookupClient.get(
+                    lat: pt.latitude,
+                    lon: pt.longitude,
+                    distance: 500).wait() {
                 self.names.append(name)
             }
         }

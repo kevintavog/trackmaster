@@ -59,10 +59,10 @@ let command = Command(usage: "Validator", flags: flags) { flags, args in
             let stopDetector = StopDetector().analyze(points: allPoints)
             let clusters = stopDetector.clusters
             let rawRuns = buildRuns(points: stopDetector.movingPoints)
-            let (chain,removed) = Chain.build(stops: stopDetector.stopPoints, runs: rawRuns)
+            let (chain,removed) = Chain.build(stops: stopDetector.stops, runs: rawRuns)
 
             let goodRuns = Chain.toRuns(chain: chain)
-            let stops = Chain.toStops(chain: chain)
+            // let stops = Chain.toStops(chain: chain)
             let removedRuns = Chain.toRuns(chain: removed)
 
 print("Kept:")

@@ -3,6 +3,8 @@ import Foundation
 public class ClusterStop: Codable, CustomStringConvertible {
     public var startTime: Date
     public var endTime: Date
+    public var firstPoint: GpsPoint
+    public var lastPoint: GpsPoint
     public var countStops: Int
     public var bounds: Bounds
     public var seconds: Double
@@ -10,8 +12,12 @@ public class ClusterStop: Codable, CustomStringConvertible {
     public init(points: [GpsPoint]) {
         self.countStops = points.count
         self.seconds = points.last!.seconds(between: points.first!)
-        self.bounds = Bounds(minLat: points[0].latitude, minLon: points[0].longitude,
+        self.firstPoint = points.first!
+        self.lastPoint = points.last!
+        self.bounds = Bounds(
+            minLat: points[0].latitude, minLon: points[0].longitude,
             maxLat: points[0].latitude, maxLon: points[0].longitude)
+
         for idx in 1..<points.count {
             let cur = points[idx]
             self.bounds.min.latitude = min(cur.latitude, self.bounds.min.latitude)
@@ -25,8 +31,14 @@ public class ClusterStop: Codable, CustomStringConvertible {
     }
 
     public func extend(point: GpsPoint) {
-        self.startTime = min(self.startTime, point.time)
-        self.endTime = max(self.endTime, point.time)
+        if point.time < self.startTime {
+            self.startTime = point.time
+            self.firstPoint = point
+        }
+        if point.time > self.endTime {
+            self.endTime = point.time
+            self.lastPoint = point
+        }
         self.countStops += 1
         self.seconds = abs(self.startTime.timeIntervalSince(self.endTime))
         bounds.min.latitude = min(point.latitude, bounds.min.latitude)
@@ -40,6 +52,6 @@ public class ClusterStop: Codable, CustomStringConvertible {
     }
 
     public var description: String {
-        return "\(startTime), \(seconds) seconds, \(countStops) stops "
+        return "\(startTime), \(seconds) seconds, \(countStops) stops"
     }
 }

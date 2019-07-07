@@ -6,6 +6,7 @@ let package = Package(
     name: "TrackMaster",
     products: [
         .executable(name: "Indexer", targets: ["Indexer"]),
+        .executable(name: "TrackFilter", targets: ["TrackFilter"]),
         .executable(name: "TrackMaster", targets: ["TrackMaster"]),
         .executable(name: "Validator", targets: ["Validator"]),
         .library(name: "TrackMasterApp", targets: ["TrackMasterApp"]),
@@ -26,6 +27,9 @@ let package = Package(
             dependencies: ["Guaka", "TrackMasterCore"]),
         .target(
             name: "Validator",
+            dependencies: ["Guaka", "TrackMasterCore"]),
+        .target(
+            name: "TrackFilter",
             dependencies: ["Guaka", "TrackMasterCore"]),
         .target(
             name: "TrackMasterApp",

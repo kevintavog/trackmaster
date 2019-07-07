@@ -30,11 +30,12 @@ let analyzedFolderFlag = Flag(shortName: "a", longName: "analyzedFolder", type: 
 let maxCountFlag = Flag(longName: "max", type: Int.self, description: "The maximum files to parse", required: false)
 let reverseNameUrlFlag = Flag(shortName: "r", longName: "reverseNameUrl", type: String.self, description: "The URL for the ReverseName service", required: true)
 let singleFileOverrideFlag = Flag(shortName: "s", longName: "singleFile", type: String.self, description: "The single file to process.", required: false)
+let skipInsertFlag = Flag(longName: "skipInsert", type: Bool.self, description: "Skip name lookups and inserting into ElasticSearch.", required: false)
 let timezoneLookupUrlFlag = Flag(shortName: "z", longName: "timezoneLookupUrl", type: String.self, description: "The URL for the Timezone Lookup service", required: false)
 let trackFolderFlag = Flag(shortName: "t", longName: "trackFolder", type: String.self, description: "The folder containing the tracks.", required: true)
 
 let flags = [createScriptFlag, elasticUrlFlag, forceFlag, analyzedFolderFlag, maxCountFlag, 
-    reverseNameUrlFlag, singleFileOverrideFlag, timezoneLookupUrlFlag, trackFolderFlag]
+    reverseNameUrlFlag, skipInsertFlag, singleFileOverrideFlag, timezoneLookupUrlFlag, trackFolderFlag]
 
 let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
 
@@ -59,15 +60,27 @@ let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
     defer { es.close() }
     let trackFolder = flags.getString(name: "trackFolder")!
     if let singleFile = flags.getString(name: "singleFile") {
+        let skipInsert = flags.getBool(name: "skipInsert") ?? false
+        if skipInsert {
+            ReverseNameLookupServer = ""
+        }
+
         do {
-            // ReverseNameLookupServer = ""
             let (gps, track) = try TrackParser.parse(trackFolder, URL(fileURLWithPath: singleFile))
-            if track != nil {
-print("inserting track: \(track!)")
-                let _ = try es.index(track: track!).wait()
-                try GpsRepository.save(gps: gps!)
+            if skipInsert {
+                print("Clustered stops:")
+                for c in gps!.clusters {
+                    print("  \(c.startTime) - \(c.endTime)")
+                }
             } else {
-                print("No usable data in \(singleFile)")
+                if track != nil {
+print("inserting track: \(track!)")
+                    let _ = try es.index(track: track!).wait()
+                    try GpsRepository.save(gps: gps!)
+                } else {
+                    print("No usable data in \(singleFile)")
+                }
+
             }
         } catch {
             fail(statusCode: 2, errorMessage: "Failed processing: \(error)")
