@@ -15,7 +15,6 @@ public class StopDetector {
 
     public var movingPoints = [GpsPoint]()
     public var stops = [GpsStop]()
-    public var clusters = [ClusterStop]()
 
     public init() {
     }

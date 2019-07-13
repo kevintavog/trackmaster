@@ -78,7 +78,6 @@ public class TrackParser {
             tracks: tracks,
             removedRuns: removedRuns,
             stops: stops,
-            clusters: stopDetector.clusters,
             tzInfo: timezoneInfo)
 
         var distanceKm: Double = 0.0
@@ -95,8 +94,10 @@ public class TrackParser {
                 }
             }
         }
-        for cs in stopDetector.clusters {
-            addName(cs.bounds.center)
+        for s in stops {
+            if s.seconds > 3 * 80 {
+                addName(s.bounds.center)
+            }
         }
 
         var exportedTrack = Track(

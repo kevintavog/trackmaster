@@ -19,9 +19,6 @@ public class PointChanges {
                 if point.calculatedSpeedKmHFromPrevious > maxKmH {
                     point.problems.append(PointProblem.tooFast)
                 }
-                // if validPrev.calculatedSpeedKmHFromPrevious >= minKmH {
-
-                // }
             }
         }
     }

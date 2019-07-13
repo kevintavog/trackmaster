@@ -68,9 +68,11 @@ let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
         do {
             let (gps, track) = try TrackParser.parse(trackFolder, URL(fileURLWithPath: singleFile))
             if skipInsert {
-                print("Clustered stops:")
-                for c in gps!.clusters {
-                    print("  \(c.startTime) - \(c.endTime)")
+                print("Longer stops:")
+                for s in gps!.stops {
+                    if s.seconds > 3 * 60 {
+                        print("  \(s.startTime) - \(s.endTime)")
+                    }
                 }
             } else {
                 if track != nil {

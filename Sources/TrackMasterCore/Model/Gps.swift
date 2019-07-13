@@ -5,7 +5,6 @@ public class Gps: Codable, CustomStringConvertible {
     public let path: String
     public let tracks: [GpsTrack]
     public let stops: [GpsStop]
-    public let clusters: [ClusterStop]
     public let removedRuns: [GpsRun]
     public let timezoneInfo: TimezoneInfo
     public let startTime: Date
@@ -18,13 +17,12 @@ public class Gps: Codable, CustomStringConvertible {
 
     public init(path: String, 
             tracks: [GpsTrack], removedRuns: [GpsRun],
-            stops: [GpsStop], clusters: [ClusterStop],
+            stops: [GpsStop],
             tzInfo: TimezoneInfo) {
         self.path = path
         self.id = path.urlEscape()
         self.tracks = tracks
         self.stops = stops
-        self.clusters = clusters
         self.removedRuns = removedRuns
         self.timezoneInfo = tzInfo
         self.startTime = tracks.first!.runs.first!.points.first!.time

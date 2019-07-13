@@ -45,12 +45,6 @@ public class RunBuilder {
                 stopIndex += 1
             }
             newRun = prevPoint.time < stops[stopIndex].startTime && pt.time > stops[stopIndex].startTime
-            // for s in stops {
-            //     if prevPoint.time <= s.startTime && pt.time >= s.startTime {
-            //         newRun = true
-            //         break
-            //     }
-            // }
         }
 
         if newRun {
