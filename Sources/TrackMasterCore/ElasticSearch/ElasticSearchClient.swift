@@ -1,6 +1,5 @@
 import Foundation
 import Vapor
-import SwiftyJSON
 
 struct Search : Codable {
     public let query: String
@@ -56,8 +55,9 @@ public class ElasticSearchClient {
 
     public func search(query: String, first: Int, count: Int) -> Future<SearchTracksResponse> {
         let path = "/\(ElasticSearch.IndexName)/\(ElasticSearch.TypeName)/_search"
-        let search = #"{ "sort": { "startTime": "desc" }, "query": { "match_all": {} }, "from": \#(first), "size": \#(count) } "#
-        
+        let q = query == "" ? "{ \"match_all\": {} }" : "{ \"query_string\": { \"query\": \"\(query)\" } }"
+        let search = #"{ "sort": { "startTime": "desc" }, "query": \#(q), "from": \#(first), "size": \#(count) } "#
+
         let data = search.data(using: .utf8)!
         return httpCalls.post(path: path, body: data).map(to: SearchTracksResponse.self) { d in
             if let data = d {

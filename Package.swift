@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.1
 
 import PackageDescription
 
@@ -6,6 +6,7 @@ let package = Package(
     name: "TrackMaster",
     products: [
         .executable(name: "Indexer", targets: ["Indexer"]),
+        .executable(name: "Publish", targets: ["Publish"]),
         .executable(name: "TrackFilter", targets: ["TrackFilter"]),
         .executable(name: "TrackMaster", targets: ["TrackMaster"]),
         .executable(name: "Validator", targets: ["Validator"]),
@@ -17,6 +18,8 @@ let package = Package(
         .package(url: "https://github.com/SwiftyJSON/SwiftyJSON.git", from: "5.0.0"),
         // .package(url: "https://github.com/chenyunguiMilook/SwiftyXML.git", from: "2.0.0"), ?? Failing to resolve
         .package(url: "https://github.com/vapor/vapor.git", from: "3.3.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "1.4.0"),
+        .package(url: "https://github.com/apple/swift-nio-zlib-support.git", from: "1.0.0"),
     ],
     targets: [
         .target(
@@ -24,6 +27,9 @@ let package = Package(
             dependencies: ["Guaka", "TrackMasterApp"]),
         .target(
             name: "Indexer",
+            dependencies: ["Guaka", "TrackMasterCore"]),
+        .target(
+            name: "Publish",
             dependencies: ["Guaka", "TrackMasterCore"]),
         .target(
             name: "Validator",

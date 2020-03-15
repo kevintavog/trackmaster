@@ -27,7 +27,7 @@ let createScriptFlag = Flag(shortName: "c", longName: "createScript", type: Stri
 let elasticUrlFlag = Flag(shortName: "e", longName: "elasticUrl", type: String.self, description: "The URL for the ElasticSearch service", required: true)
 let forceFlag = Flag(longName: "force", type: Bool.self, description: "Force the updates", required: false)
 let analyzedFolderFlag = Flag(shortName: "a", longName: "analyzedFolder", type: String.self, description: "The folder the analyzed GPS files will be written.", required: true)
-let maxCountFlag = Flag(longName: "max", type: Int.self, description: "The maximum files to parse", required: false)
+let maxCountFlag = Flag(longName: "max", type: Int.self, description: "The maximum number of files to parse", required: false)
 let reverseNameUrlFlag = Flag(shortName: "r", longName: "reverseNameUrl", type: String.self, description: "The URL for the ReverseName service", required: true)
 let singleFileOverrideFlag = Flag(shortName: "s", longName: "singleFile", type: String.self, description: "The single file to process.", required: false)
 let skipInsertFlag = Flag(longName: "skipInsert", type: Bool.self, description: "Skip name lookups and inserting into ElasticSearch.", required: false)
@@ -82,12 +82,10 @@ print("inserting track: \(track!)")
                 } else {
                     print("No usable data in \(singleFile)")
                 }
-
             }
         } catch {
             fail(statusCode: 2, errorMessage: "Failed processing: \(error)")
         }
-
     } else {
         do {
             let force = flags.getBool(name: "force") ?? false

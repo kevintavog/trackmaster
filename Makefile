@@ -11,3 +11,6 @@ release-build:
 
 image:
 	docker build  . -t docker.rangic:6000/trackmaster:${BUILD_ID}
+
+push:
+	docker push docker.rangic:6000/trackmaster:${BUILD_ID}

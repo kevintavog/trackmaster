@@ -27,7 +27,7 @@ public struct ControllerError: Error, Debuggable {
                     self.identifier = "unexpected"
                     self.reason = message
                 case .notFound(let message):
-                    self.identifier = "invalidParameter"
+                    self.identifier = "notFound"
                     self.reason = message
             }
         } else {

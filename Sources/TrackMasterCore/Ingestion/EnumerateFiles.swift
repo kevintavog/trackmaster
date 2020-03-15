@@ -2,10 +2,9 @@ import Foundation
 
 
 public func enumerateFiles(_ path: URL) throws -> [URL] {
-    let resourceKeys : [URLResourceKey] = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey]
     let enumerator = FileManager.default.enumerator(
         at: path,
-        includingPropertiesForKeys: resourceKeys,
+        includingPropertiesForKeys: [],
         options: [.skipsHiddenFiles], errorHandler: { (url, error) -> Bool in
             print("enumerateFiles error at \(url): \(error)")
             return true
@@ -14,8 +13,8 @@ public func enumerateFiles(_ path: URL) throws -> [URL] {
 
     var files = [URL]()
     for case let fileURL as URL in enumerator {
-        let resValues = try fileURL.resourceValues(forKeys: Set(resourceKeys))
-        if !resValues.isDirectory! {
+        print("  Checking \(fileURL.path) [\(fileURL.hasDirectoryPath)]")
+        if !fileURL.hasDirectoryPath {
             files.append(fileURL)
         }
     }

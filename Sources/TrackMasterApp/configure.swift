@@ -1,5 +1,7 @@
 import Vapor
 
+public var configuredPort = 8080
+
 /// Called before your application initializes.
 public func configure(_ config: inout Config, _ env: inout Environment, _ services: inout Services) throws {
     // Register providers first
@@ -22,4 +24,6 @@ public func configure(_ config: inout Config, _ env: inout Environment, _ servic
     middlewares.use(CORSMiddleware(configuration: corsConfiguration))
     services.register(middlewares)
 
+    let serverConfigure = NIOServerConfig.default(hostname: "0.0.0.0", port: configuredPort)
+    services.register(serverConfigure)
 }

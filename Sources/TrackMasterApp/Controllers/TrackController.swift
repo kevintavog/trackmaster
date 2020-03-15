@@ -4,6 +4,8 @@ import Vapor
 struct TracksQueryParams: Codable {
     let first: Int?
     let count: Int?
+    let startDate: String?
+    let endDate: String?
 }
 
 final class TrackController {
@@ -75,7 +77,17 @@ final class TrackController {
         let clientPromise = req.eventLoop.newPromise(ControllerTracksResponse.self)
         ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: req.eventLoop).do() { client in
             let qp = try! req.query.decode(TracksQueryParams.self)
-            client.search(query: "", first: qp.first ?? 1, count: qp.count ?? 10).do() { searchResponse in
+            var query = ""
+            if let sd = qp.startDate, let ed = qp.endDate {
+                query = "startTime:>=\(sd) && endTime:<=\(ed)"
+            }
+
+            var first = 0
+            if let f = qp.first {
+                first = max(0, f - 1)
+            }
+
+            client.search(query: query, first: first, count: qp.count ?? 10).do() { searchResponse in
                 clientPromise.succeed(result: ControllerTracksResponse(searchResponse: searchResponse))
             }.catch() { error in
                 clientPromise.fail(error: ControllerError(error: error))
