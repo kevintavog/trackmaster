@@ -1,6 +1,7 @@
 import Foundation
 import TrackMasterCore
 import Guaka
+import SwiftyXML
 import Vapor
 
 
@@ -11,7 +12,7 @@ func isIncluded(_ pointTime: Date, _ startTime: Date, _ endTime: Date) -> Bool {
     // 2019-06-22T08:40:56Z
     // Annoyingly, retrieving the hour from the GpsPoint date, in UTC, returns the hour converted
     // to the local time zone. Avoid that by pulling the HH:MM from the (UTC) string and converting that.
-    let pointHMTime = hourFormatter.date(from:  GpsPoint.dateTimeFormatter.string(from: pointTime).subString(11, 15))!
+    let pointHMTime = hourFormatter.date(from:  Converter.dateTimeFormatter.string(from: pointTime).subString(11, 15))!
     let point = Calendar.current.dateComponents([.hour, .minute], from: pointHMTime)
     let start = Calendar.current.dateComponents([.hour, .minute], from: startTime)
     let end = Calendar.current.dateComponents([.hour, .minute], from: endTime)
@@ -82,20 +83,17 @@ let command = Command(usage: "TrackFilter", flags: flags) { flags, args in
         let startString = flags.getString(name: "start")!
         let endString = flags.getString(name: "end")!
 
-        let fileData = try Data(contentsOf: URL(fileURLWithPath: inputFile))
-        let xml = XML(data: fileData)
-
         let startTime = hourFormatter.date(from: startString)!
         let endTime = hourFormatter.date(from: endString)!
 
         print("Getting points between \(hourFormatter.string(from: startTime)) and \(hourFormatter.string(from: endTime))")
 
 
+        let (_, tracks, _) = try TrackParser.parse(URL(fileURLWithPath: inputFile))
         var filteredPoints = [GpsPoint]()
-        for trk in xml!["trk"] {
-            for segment in trk["trkseg"] {
-                for xmlPoint in segment["trkpt"] {
-                    let pt = GpsPoint.from(xml: xmlPoint)
+        for t in tracks {
+            for s in t.segments {
+                for pt in s.points {
                     if isIncluded(pt.time, startTime, endTime) {
                         filteredPoints.append(pt)
                     }

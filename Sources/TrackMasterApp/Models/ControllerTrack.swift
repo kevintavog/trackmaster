@@ -8,35 +8,35 @@ public struct ControllerTrack: Codable, Content {
     public let timezoneInfo: TimezoneInfo
     public let startTime: Date?
     public let endTime: Date?
-    public let durationSeconds: Double?
+    public let seconds: Double?
     public let movingSeconds: Double?
-    public let distanceKilometers: Double?
+    public let kilometers: Double?
     public let indexTime: Date?
     public let bounds: Bounds
     public let countryNames: [String]
     public let countryCodes: [String]
     public let stateNames: [String]
     public let cityNames: [String]
-    public let siteNames: [String]
+    public let sites: [PlacenameSite]
 
 
-    public init(track: Track) {
-        self.id = track.id
-        self.path = track.path
-        self.checksum = track.checksum
-        self.timezoneInfo = track.timezoneInfo
-        self.startTime = track.startTime
-        self.endTime = track.endTime
-        self.durationSeconds = track.durationSeconds
-        self.movingSeconds = track.movingSeconds
-        self.distanceKilometers = track.distanceKilometers
-        self.indexTime = track.indexTime
-        self.bounds = track.bounds
-        self.countryNames = ControllerTrack.namesByCount(track.countryNames)
-        self.countryCodes = ControllerTrack.namesByCount(track.countryCodes)
-        self.stateNames = ControllerTrack.namesByCount(track.stateNames)
-        self.cityNames = ControllerTrack.namesByCount(track.cityNames)
-        self.siteNames = ControllerTrack.namesByCount(track.siteNames)
+    public init(gps: ResponseGps) {
+        self.id = gps.id
+        self.path = gps.path
+        self.checksum = gps.checksum
+        self.timezoneInfo = gps.timezoneInfo
+        self.startTime = gps.startTime
+        self.endTime = gps.endTime
+        self.seconds = gps.seconds
+        self.movingSeconds = gps.movingSeconds
+        self.kilometers = gps.kilometers
+        self.indexTime = gps.indexTime
+        self.bounds = gps.bounds
+        self.countryNames = ControllerTrack.namesByCount(gps.countryNames)
+        self.countryCodes = ControllerTrack.namesByCount(gps.countryCodes)
+        self.stateNames = ControllerTrack.namesByCount(gps.stateNames)
+        self.cityNames = ControllerTrack.namesByCount(gps.cityNames)
+        self.sites = gps.sites
     }
 
     // Given an array of string names with likely duplicates, return the

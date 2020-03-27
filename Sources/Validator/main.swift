@@ -2,7 +2,7 @@ import Foundation
 import TrackMasterCore
 import Guaka
 
-
+/*
 func parseXml(file: URL) throws -> [GpsPoint] {
     let fileData = try Data(contentsOf: file)
     let xml = XML(data: fileData)
@@ -79,3 +79,4 @@ print("Removed:")
 }
 
 command.execute()
+*/

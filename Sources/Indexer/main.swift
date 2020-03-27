@@ -20,6 +20,21 @@ func ShouldCreateOrUpdate(_ client: ElasticSearchClient, _ base: String, _ input
     }
 }
 
+func insert(_ client: ElasticSearchClient, _ trackFolder: String, _ url: URL, 
+        _ tracks: [GpsTrack], _ waypoints: [GpsWaypoint], _ checksum: String) throws {
+    if let gps = GpsAnalyzer().process(
+                Gps.relativePath(trackFolder, url),
+                tracks,
+                waypoints) {
+        let indexedGps = ResponseGps(gps: gps, checksum: checksum)
+        let _ = try client.index(gps: indexedGps).wait()
+        try GpsRepository.save(gps: gps)
+    } else {
+        print("No worthwhile data, skipping \(url.path.deletingPathPrefix(trackFolder))")
+    }
+
+}
+
 private let eventGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
 
 
@@ -35,10 +50,10 @@ let timezoneLookupUrlFlag = Flag(shortName: "z", longName: "timezoneLookupUrl", 
 let trackFolderFlag = Flag(shortName: "t", longName: "trackFolder", type: String.self, description: "The folder containing the tracks.", required: true)
 
 let flags = [createScriptFlag, elasticUrlFlag, forceFlag, analyzedFolderFlag, maxCountFlag, 
-    reverseNameUrlFlag, skipInsertFlag, singleFileOverrideFlag, timezoneLookupUrlFlag, trackFolderFlag]
+    reverseNameUrlFlag, singleFileOverrideFlag, skipInsertFlag, timezoneLookupUrlFlag, trackFolderFlag]
+
 
 let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
-
     if let createScript = flags.getString(name: "createScript") {
         ElasticSearch.CreateIndexScript = createScript
     }
@@ -66,22 +81,18 @@ let command = Command(usage: "TrackMaster", flags: flags) { flags, args in
         }
 
         do {
-            let (gps, track) = try TrackParser.parse(trackFolder, URL(fileURLWithPath: singleFile))
+            let (checksum, tracks, waypoints) = try TrackParser.parse(URL(fileURLWithPath: singleFile))
             if skipInsert {
                 print("Longer stops:")
-                for s in gps!.stops {
-                    if s.seconds > 3 * 60 {
-                        print("  \(s.startTime) - \(s.endTime)")
+                for w in waypoints {
+                    if let stop = w.stop {
+                        if stop.seconds > 3 * 60 {
+                            print("  \(stop.shortBeginTime()) - \(stop.shortFinishTime())")
+                        }
                     }
                 }
             } else {
-                if track != nil {
-print("inserting track: \(track!)")
-                    let _ = try es.index(track: track!).wait()
-                    try GpsRepository.save(gps: gps!)
-                } else {
-                    print("No usable data in \(singleFile)")
-                }
+                try insert(es, trackFolder, URL(fileURLWithPath: singleFile), tracks, waypoints, checksum)
             }
         } catch {
             fail(statusCode: 2, errorMessage: "Failed processing: \(error)")
@@ -96,16 +107,9 @@ print("inserting track: \(track!)")
             var count = 0
             for f in files {
                 if try force || ShouldCreateOrUpdate(es, trackFolder, f) {
-print("Parsing \(f)")
-                    let (gps, track) = try TrackParser.parse(trackFolder, f)
-                    if track != nil {
-                        let _ = try es.index(track: track!).wait()
-                        try GpsRepository.save(gps: gps!)
-                        print("inserted \(f.path) - \(track!.id)")
-                    } else {
-                        print("No usable data in \(f)")
-                    }
-
+                    print("Processing \(f.path.deletingPathPrefix(trackFolder))")
+                    let (checksum, tracks, waypoints) = try TrackParser.parse(f)
+                    try insert(es, trackFolder, f, tracks, waypoints, checksum)
                     count += 1
                     if maxCount >= 0 && count >= maxCount {
                         break

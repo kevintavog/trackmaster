@@ -1,3 +1,4 @@
+/*
 import Foundation
 
 public enum ChainLinkType: String, Codable {
@@ -216,3 +217,4 @@ public class Chain {
         l.recentDistanceMeters = Int(1000 * l.begin.distanceKm(between: recentStops.first!.begin))
     }
 }
+*/

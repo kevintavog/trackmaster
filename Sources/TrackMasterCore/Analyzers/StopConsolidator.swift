@@ -1,3 +1,4 @@
+/*
 import Foundation
 
 public class StopConsolidator {
@@ -57,3 +58,4 @@ public class StopConsolidator {
         return (Chain.toRuns(chain: link), Chain.toStops(chain: link), removedRuns)
     }
 }
+*/

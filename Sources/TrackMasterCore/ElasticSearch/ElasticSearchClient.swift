@@ -39,13 +39,13 @@ public class ElasticSearchClient {
         httpCalls.close()
     }
 
-    public func get(id: String) -> Future<Track?> {
+    public func get(id: String) -> Future<ResponseGps?> {
         let path = "/\(ElasticSearch.IndexName)/\(ElasticSearch.TypeName)/\(id)"
-        return httpCalls.getJson(path: path).map(to: Track?.self) { j in
+        return httpCalls.getJson(path: path).map(to: ResponseGps?.self) { j in
             if let json = j {
                 if let found = json["found"].bool {
                     if found {
-                        return try Track.decodeFromJson(json: json["_source"].rawData())
+                        return try ResponseGps.decodeFromJson(json: json["_source"].rawData())
                     }
                 }
             }
@@ -63,7 +63,7 @@ public class ElasticSearchClient {
             if let data = d {
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
-                let response = try decoder.decode(SearchResponse<Track>.self, from: data)
+                let response = try decoder.decode(SearchResponse<ResponseGps>.self, from: data)
                 if let container = response.hits {
                     return SearchTracksResponse(matches: container.hits.map { $0._source }, totalMatches: container.total)
                 }
@@ -72,10 +72,10 @@ public class ElasticSearchClient {
         }
     }
 
-    public func index(track: Track) -> Future<ElasticSearchIndexResponse> {
+    public func index(gps: ResponseGps) -> Future<ElasticSearchIndexResponse> {
         do {
-            let data = try track.encodeToJson()
-            let path = "/\(ElasticSearch.IndexName)/\(ElasticSearch.TypeName)/\(track.id)"
+            let data = try gps.encodeToJson()
+            let path = "/\(ElasticSearch.IndexName)/\(ElasticSearch.TypeName)/\(gps.id)"
             return httpCalls.put(path: path, body: data).map(to: ElasticSearchIndexResponse.self) { d in
                 if let data = d {
                     return try JSONDecoder().decode(ElasticSearchIndexResponse.self, from: data)
@@ -84,7 +84,7 @@ public class ElasticSearchClient {
             }
         } catch {
             let clientPromise = worker.eventLoop.newPromise(ElasticSearchIndexResponse.self)
-            clientPromise.fail(error: TMError.invalidParameter(message: "Can't convert track: \(error)"))
+            clientPromise.fail(error: TMError.invalidParameter(message: "Can't convert gps: \(error)"))
             return clientPromise.futureResult
         }
     }

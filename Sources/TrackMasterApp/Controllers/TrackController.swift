@@ -14,9 +14,9 @@ final class TrackController {
         let id = try req.parameters.next(String.self).urlEscape()
 
         ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: req.eventLoop).do() { client in
-            client.get(id: id).do() { t in
-                if let track = t {
-                    clientPromise.succeed(result: ControllerTrack(track: track))
+            client.get(id: id).do() { g in
+                if let gps = g {
+                    clientPromise.succeed(result: ControllerTrack(gps: gps))
                 }
             }.catch() { error in
                 clientPromise.fail(error: ControllerError(error: error))
@@ -32,10 +32,10 @@ final class TrackController {
         let id = try req.parameters.next(String.self).urlEscape()
 
         ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: req.eventLoop).do() { client in
-            client.get(id: id).do() { t in
-                if let track = t {
+            client.get(id: id).do() { g in
+                if let gps = g {
                     do {
-                        try clientPromise.succeed(result: GpsRepository.loadRaw(path: track.path))
+                        try clientPromise.succeed(result: GpsRepository.loadRaw(path: gps.path))
                     } catch {
                         clientPromise.fail(error: ControllerError(error: error))
                     }
@@ -55,10 +55,10 @@ final class TrackController {
         let id = try req.parameters.next(String.self).urlEscape()
 
         ElasticSearchClient.connect(baseUrl: ElasticSearch.ServerUrl, on: req.eventLoop).do() { client in
-            client.get(id: id).do() { t in
-                if let track = t {
+            client.get(id: id).do() { g in
+                if let gps = g {
                     do {
-                        try clientPromise.succeed(result: GpsRepository.loadOriginal(path: track.path))
+                        try clientPromise.succeed(result: GpsRepository.loadOriginal(path: gps.path))
                     } catch {
                         clientPromise.fail(error: ControllerError(error: error))
                     }

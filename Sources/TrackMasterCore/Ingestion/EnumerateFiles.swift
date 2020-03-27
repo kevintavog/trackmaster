@@ -13,7 +13,6 @@ public func enumerateFiles(_ path: URL) throws -> [URL] {
 
     var files = [URL]()
     for case let fileURL as URL in enumerator {
-        print("  Checking \(fileURL.path) [\(fileURL.hasDirectoryPath)]")
         if !fileURL.hasDirectoryPath {
             files.append(fileURL)
         }

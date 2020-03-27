@@ -1,5 +1,9 @@
 import Foundation
 
+// FYI: During research, https://link.springer.com/article/10.1007/s40534-015-0079-x was found but 
+// not used for implementation.
+
+
 // Responsible for filtering out sequences of points that are likely stops
 // From https://medium.com/strava-engineering/the-global-heatmap-now-6x-hotter-23fc01d301de
 //  Referenced from https://gis.stackexchange.com/questions/89451/how-to-calculate-stop-points-from-a-set-of-gps-tracklogs
@@ -7,6 +11,7 @@ import Foundation
 // at any point, subsequent points from that activity are movingPoints until the activity
 // breaches a specific radius in distance from the initial stopped point.
 public class StopDetector {
+/*
     static fileprivate let tooSlowAverageKmH = 0.3
     static fileprivate let ignoreRadiusKm = 0.003
 
@@ -31,8 +36,8 @@ public class StopDetector {
 
         for pt in points {
             // Get rid of points that are too fast, they skew results
-            if pt.problems.contains(PointProblem.tooFast) {
-print("Throwing out too fast point: \(pt.time) - \(pt.calculatedSpeedKmHFromPrevious)")
+            if pt.calculatedSpeedKmh > AnalyzerSettings.maxKmh {
+print("Throwing out too fast point: \(pt.time) - \(pt.calculatedSpeedKmh)")
                 continue
             }
 
@@ -118,4 +123,5 @@ print("Throwing out too fast point: \(pt.time) - \(pt.calculatedSpeedKmHFromPrev
     fileprivate func findStopIndex(_ pt: GpsPoint) -> Int {
         return stops.firstIndex(where: { $0.startTime == pt.time }) ?? -1
     }
+*/
 }

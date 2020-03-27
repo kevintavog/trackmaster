@@ -9,27 +9,9 @@ import Foundation
 //      Car         13-30   46-108      29-67
 //      Train       56      201         125
 //      Plane       250     900         560
-public enum TransportationMode: String, Codable {
-    case unknown = "unknown"
-    case foot = "foot"
-    case bicycle = "bicycle"
-    case car = "car"
-    case train = "train"
-    case plane = "plane"
-}
-
-public struct TransportationType: Codable {
-    public let probability: Double
-    public let mode: TransportationMode
-
-    init(probability: Double, mode: TransportationMode) {
-        self.probability = probability
-        self.mode = mode
-    }
-}
 
 // Speeds, in kilometers per hour, of different transportation types. Given a single speed, a table of SpeedProfile instances
-// is used to determine up to the two most likely transportation types.
+// is used to determine the two most likely transportation types.
 // Probabilities are 1.0 for included in the nominal range. Outside of that range, but within the absolute range, the
 // probability is a linear value starting from 0.10
 struct SpeedProfile {
@@ -50,7 +32,7 @@ public class Transportation {
         SpeedProfile(absoluteMinimum: 100.0, nominalMinimum: 160.0, nominalMaximum: 800.0, absoluteMaximum: 1000.0, mode: .plane)]
 
     static public func calculate(pt: GpsPoint) -> [TransportationType] {
-        return calculate(speedKmh: pt.speedKmH)
+        return calculate(speedKmh: pt.calculatedSpeedKmh)
     }
 
     static public func calculate(speedKmh: Double) -> [TransportationType] {

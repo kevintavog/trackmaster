@@ -1,37 +1,37 @@
 import Foundation
 
-public class GpsTrack : Codable, CustomStringConvertible {
-    public let runs: [GpsRun]
+public class GpsTrack: CustomStringConvertible {
+    public let segments: [GpsSegment]
     public let bounds: Bounds
-    public let durationSeconds: Double
-    public let distanceKilometers: Double
+    public let seconds: Double
+    public let kilometers: Double
 
-    init(runs: [GpsRun]) {
-        self.runs = runs
+    init(segments: [GpsSegment]) {
+        self.segments = segments
 
         let bnds = Bounds()
 
         var secondsIntoTrack = 0.0
         var kilometersIntoTrack = 0.0
-        for r in runs {
-            r.secondsIntoTrack = secondsIntoTrack
-            secondsIntoTrack += r.seconds
-            r.kilometersIntoTrack = kilometersIntoTrack
-            kilometersIntoTrack += r.kilometers
+        for s in segments {
+            s.secondsIntoTrack = secondsIntoTrack
+            secondsIntoTrack += s.seconds
+            s.kilometersIntoTrack = kilometersIntoTrack
+            kilometersIntoTrack += s.kilometers
 
-            bnds.min.latitude = min(bnds.min.latitude, r.bounds.min.latitude)
-            bnds.min.longitude = min(bnds.min.longitude, r.bounds.min.longitude)
-            bnds.max.latitude = max(bnds.max.latitude, r.bounds.max.latitude)
-            bnds.max.longitude = max(bnds.max.longitude, r.bounds.max.longitude)
+            bnds.min.latitude = min(bnds.min.latitude, s.bounds.min.latitude)
+            bnds.min.longitude = min(bnds.min.longitude, s.bounds.min.longitude)
+            bnds.max.latitude = max(bnds.max.latitude, s.bounds.max.latitude)
+            bnds.max.longitude = max(bnds.max.longitude, s.bounds.max.longitude)
         }
 
         self.bounds = bnds
-        self.durationSeconds = secondsIntoTrack
-        self.distanceKilometers = kilometersIntoTrack
-     }
+        self.seconds = secondsIntoTrack
+        self.kilometers = kilometersIntoTrack
+    }
 
     public var description: String {
-        let startTime = runs.first!.points.first!.time
-        return "\(runs.count) runs, from \(startTime) for \(durationSeconds) seconds and \(Int(distanceKilometers * 1000.0)) meters"
+        let startTime = segments.first!.points.first!.time
+        return "\(segments.count) segments, from \(startTime) for \(seconds) seconds and \(Int(kilometers * 1000.0)) meters"
     }
 }
